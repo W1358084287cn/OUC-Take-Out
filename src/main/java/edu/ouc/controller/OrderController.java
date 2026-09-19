@@ -23,13 +23,23 @@ public class OrderController {
     @Autowired
     private OrderServiceImpl orderService;
 
-    // 提交(添加)订单
+    // 提交(添加)订单，返回订单对象(含订单号、金额)
     @PostMapping("/submit")
-    public R<String> submit(@RequestBody Orders orders) {
-        if (orderService.submit(orders)) {
-            return R.success("下单成功");
+    public R<Orders> submit(@RequestBody Orders orders) {
+        Orders order = orderService.submit(orders);
+        if (order != null) {
+            return R.success(order);
         }
         return R.error("下单失败");
+    }
+
+    // 用户支付：更新订单状态为待派送，记录支付方式和支付时间
+    @PostMapping("/pay")
+    public R<String> pay(@RequestBody Orders orders) {
+        if (orderService.pay(orders.getId(), orders.getPayMethod())) {
+            return R.success("支付成功");
+        }
+        return R.error("支付失败");
     }
 
     // 用户端获取订单分页展示

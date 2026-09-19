@@ -200,8 +200,12 @@
                 }
                 const res = await addOrderApi(params)
                 if (res.code === 1) {
+                    // 下单成功后携带订单信息跳转到支付页面
+                    const order = res.data
                     window.requestAnimationFrame(() => {
-                        window.location.replace('/front/page/pay-success.html')
+                        window.location.replace('/front/page/pay.html?orderId=' + order.id
+                            + '&orderNumber=' + order.number
+                            + '&amount=' + order.amount)
                     })
                 } else {
                     this.$notify({type: 'warning', message: res.msg});

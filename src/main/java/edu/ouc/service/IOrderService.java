@@ -14,8 +14,11 @@ import edu.ouc.entity.Orders;
  */
 public interface IOrderService extends IService<Orders> {
 
-    // 提交(添加)订单
-    Boolean submit(Orders orders);
+    // 提交(添加)订单，返回订单对象(含订单号)
+    Orders submit(Orders orders);
+
+    // 用户支付，更新订单状态为待派送
+    Boolean pay(Long orderId, Integer payMethod);
 
     // 获取订单分页展示
     Page<OrderDto> getPage(Long page, Long pageSize);

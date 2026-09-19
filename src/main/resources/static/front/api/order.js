@@ -7,6 +7,15 @@ function  addOrderApi(data){
       })
 }
 
+//支付订单
+function payOrderApi(data){
+    return $axios({
+        'url': '/order/pay',
+        'method': 'post',
+        data
+    })
+}
+
 //查询所有订单
 function orderListApi() {
   return $axios({

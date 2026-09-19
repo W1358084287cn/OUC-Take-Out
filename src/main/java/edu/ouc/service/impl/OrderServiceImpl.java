@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -42,10 +43,10 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
     @Autowired
     private UserServiceImpl userService;
 
-    // 提交(添加)订单
+    // 提交(添加)订单，返回订单对象(含订单号)
     @Override
     @Transactional  // 涉及到两张表的插入操作需要打开事务控制
-    public Boolean submit(Orders orders) {
+    public Orders submit(Orders orders) {
 
         // 1.获取当前登录用户ID
         Long userId = BaseContext.getCurrentUserId();
@@ -99,8 +100,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         orders.setNumber(String.valueOf(orderId));
         // 设置下单用户ID
         orders.setUserId(userId);
-        // 设置订单状态为待派送
-        orders.setStatus(2);
+        // 设置订单状态为待付款(支付完成后再改为待派送)
+        orders.setStatus(1);
         // 设置商品总金额
         orders.setAmount(new BigDecimal(amount.get()));
         // 设置订单客户手机号
@@ -123,7 +124,31 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         orderDetailService.saveBatch(orderDetails);
 
         // 9.下单完成后清空购物车数据
-        return shoppingCartService.remove(shoppingCartLqw);
+        shoppingCartService.remove(shoppingCartLqw);
+
+        // 返回订单对象(含订单号、金额等信息，供前端支付页面使用)
+        return orders;
+    }
+
+    // 用户支付，更新订单状态为待派送
+    @Override
+    @Transactional
+    public Boolean pay(Long orderId, Integer payMethod) {
+        // 1.根据订单ID查询订单
+        Orders order = this.getById(orderId);
+        if (order == null) {
+            throw new CustomException("订单不存在");
+        }
+        // 2.校验订单状态是否为待付款
+        if (order.getStatus() != 1) {
+            throw new CustomException("订单状态异常，无法支付");
+        }
+        // 3.更新订单状态为待派送、支付方式、支付时间
+        order.setStatus(2);
+        order.setPayMethod(payMethod);
+        order.setCheckoutTime(LocalDateTime.now());
+        // 4.执行更新
+        return this.updateById(order);
     }
 
     // 获取订单分页展示
