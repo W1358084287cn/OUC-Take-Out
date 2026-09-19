@@ -47,7 +47,8 @@ public class LoginCheckFilter implements Filter {
                 "/backend/**",      // 后台页面的页面的静态资源
                 "/front/**",        // 移动端页面的静态资源
                 "/user/login",      // 用户登录
-                "/user/sendMsg"     // 发送登录验证码
+                "/user/sendMsg",    // 发送登录验证码
+                "/common/**"        // 文件上传下载（图片等静态资源，无需登录）
         };
 
         // 3.判断本次请求URL是否需要拦截

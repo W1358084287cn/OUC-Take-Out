@@ -29,13 +29,6 @@
             <version>2.2.2</version>
         </dependency>
 
-        <!-- Sharding-JDBC -->
-        <dependency>
-            <groupId>org.apache.shardingsphere</groupId>
-            <artifactId>sharding-jdbc-spring-boot-starter</artifactId>
-            <version>4.0.1</version>
-        </dependency>
-
         <!-- Spring Data Redis -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -66,6 +59,8 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>1.18.48</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Fastjson：将对象转成json -->
@@ -82,11 +77,11 @@
             <version>2.6</version>
         </dependency>
 
-        <!-- Druid数据库连接池 -->
+        <!-- Druid数据库连接池Spring Boot启动器 -->
         <dependency>
             <groupId>com.alibaba</groupId>
-            <artifactId>druid</artifactId>
-            <version>1.2.8</version>
+            <artifactId>druid-spring-boot-starter</artifactId>
+            <version>1.2.12</version>
         </dependency>
 
         <dependency>
@@ -149,6 +144,21 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.48</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -19,18 +19,27 @@ public class MailUtils {
 
     // 发送邮件验证码
     public static void sendMail(String email, String code) throws MessagingException {
+        // 0.设置JDK TLS协议版本（JDK 25禁用了旧版TLS，需要显式启用TLSv1.2）
+        System.setProperty("mail.smtp.ssl.protocols", "TLSv1.2");
+        System.setProperty("https.protocols", "TLSv1.2,TLSv1.3");
+
         // 1.创建Properties 类用于记录邮箱的一些属性
         Properties pros = new Properties();
         // 1.1 表示SMTP发送邮件，必须进行身份验证
         pros.put("mail.smtp.auth", "true");
         // 1.2 此处填写SMTP服务器
         pros.put("mail.smtp.host", "smtp.qq.com");
-        // 1.3 端口号，QQ邮箱端口587
+        // 1.3 端口号，QQ邮箱STARTTLS端口587
         pros.put("mail.smtp.port", "587");
-        // 1.4 此处填写，写信人的账号
-        pros.put("mail.user", "sihangxie@qq.com");
-        // 1.5 此处填写16位STMP口令
-        pros.put("mail.password", "zqvhcrhmebjgbedb");
+        // 1.4 开启STARTTLS加密
+        pros.put("mail.smtp.starttls.enable", "true");
+        // 1.5 指定SSL协议版本为TLSv1.2（JDK 25禁用了旧版协议）
+        pros.put("mail.smtp.ssl.protocols", "TLSv1.2");
+        pros.put("mail.smtp.ssl.trust", "smtp.qq.com");
+        // 1.5 此处填写，写信人的账号
+        pros.put("mail.user", "2771464100@qq.com");
+        // 1.6 此处填写16位STMP口令
+        pros.put("mail.password", "qrxmfldxpctadfbc");
 
         // 2.构建授权信息，用于进行SMTP进行身份验证
         Authenticator authenticator = new Authenticator() {
