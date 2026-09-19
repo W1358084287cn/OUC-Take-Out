@@ -20,6 +20,9 @@ public interface IOrderService extends IService<Orders> {
     // 用户支付，更新订单状态为待派送
     Boolean pay(Long orderId, Integer payMethod);
 
+    // 根据ID查询单个订单
+    Orders getOrderById(Long id);
+
     // 获取订单分页展示
     Page<OrderDto> getPage(Long page, Long pageSize);
 
@@ -28,4 +31,7 @@ public interface IOrderService extends IService<Orders> {
 
     // 修改订单状态
     Boolean update(Orders order);
+
+    // 获取待处理订单数量（status=2待派送 + status=3已派送）
+    Integer getNewOrderCount();
 }

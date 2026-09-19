@@ -60,7 +60,7 @@
                         <div class="divName">{{item.name}}</div>
                         <div class="divDesc">{{item.description}}</div>
                         <div class="divDesc">{{'月销' + (item.saleNum ? item.saleNum : 0) }}</div>
-                        <div class="divBottom"><span>￥</span><span>{{item.price/100}}</span></div>
+                        <div class="divBottom"><span>￥</span><span>{{Number(item.price).toFixed(2)}}</span></div>
                         <div class="divNum">
                             <div class="divSubtract" v-if="item.number > 0">
                                 <img src="./images/subtract.png" @click.prevent.stop="subtractCart(item)"/>
@@ -111,7 +111,7 @@
             </div>
         </div>
         <div class="divBottom">
-            <div><span class="spanMoney">￥</span>{{dialogFlavor.price/100}}</div>
+            <div><span class="spanMoney">￥</span>{{Number(dialogFlavor.price).toFixed(2)}}</div>
             <div @click="dialogFlavorAddCart">加入购物车</div>
         </div>
         <div class="divFlavorClose" @click="dialogFlavor.show = false">
@@ -135,7 +135,7 @@
                 <div class="divDesc">
                     <div class="name">{{item.name}}</div>
                     <div class="price">
-                        <span class="spanMoney">￥</span>{{item.amount}}
+                        <span class="spanMoney">￥</span>{{Number(item.amount).toFixed(2)}}
                     </div>
                 </div>
                 <div class="divNum">
@@ -168,7 +168,7 @@
         </div>
         <div class="divNum">
             <div class="left">
-                <span>￥</span><span>{{detailsDialog.item.price/100}}</span>
+                <span>￥</span><span>{{Number(detailsDialog.item.price).toFixed(2)}}</span>
             </div>
             <div class="right">
                 <div class="divSubtract" v-if="detailsDialog.item.number > 0">
@@ -204,7 +204,7 @@
                 </el-image>
                 <div class="divSubTitle">{{item.name + '(' + item.copies + '份)' }}
                     <div class="divPrice">
-                        <span>￥</span><span>{{item.price/100}}</span>
+                        <span>￥</span><span>{{Number(item.price).toFixed(2)}}</span>
                     </div>
                 </div>
                 <div class="content">{{item.description}}</div>
@@ -212,7 +212,7 @@
         </div>
         <div class="divNum">
             <div class="left">
-                <span>￥</span><span>{{setMealDialog.item.price/100}}</span>
+                <span>￥</span><span>{{Number(setMealDialog.item.price).toFixed(2)}}</span>
             </div>
             <div class="right">
                 <div class="divSubtract" v-if="setMealDialog.item.number > 0">
@@ -288,9 +288,9 @@
             goodsPrice() {
                 let price = 0
                 this.cartData.forEach(item => {
-                    price += (item.number * item.amount)
+                    price += (item.number * Number(item.amount))
                 })
-                return price
+                return price.toFixed(2)
             }
         },
         created() {
@@ -401,7 +401,7 @@
             //菜单中往购物车中添加商品
             async addCart(item) {
                 let params = {
-                    amount: item.price / 100,//金额
+                    amount: item.price,//金额
                     dishFlavor: item.dishFlavor,//口味  如果没有传undefined
                     dishId: undefined,//菜品id
                     setmealId: undefined,//套餐id

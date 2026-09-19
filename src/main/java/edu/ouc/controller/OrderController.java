@@ -48,10 +48,26 @@ public class OrderController {
         return R.success(orderService.getPage(page, pageSize));
     }
 
+    // 后台管理端获取待处理订单数量
+    @GetMapping("/newCount")
+    public R<Integer> getNewCount() {
+        return R.success(orderService.getNewOrderCount());
+    }
+
     // 后台管理端获取订单分页展示
     @GetMapping("/page")
     public R<Page<OrderDto>> page(Long page, Long pageSize, String number, String beginTime, String endTime) {
         return R.success(orderService.getAllPage(page, pageSize, number, beginTime, endTime));
+    }
+
+    // 根据ID查询单个订单详情
+    @GetMapping("/detail/{id}")
+    public R<Orders> getById(@PathVariable Long id) {
+        Orders order = orderService.getOrderById(id);
+        if (order != null) {
+            return R.success(order);
+        }
+        return R.error("订单不存在");
     }
 
     // 修改订单状态

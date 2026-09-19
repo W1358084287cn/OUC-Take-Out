@@ -145,7 +145,7 @@
                 const res = await orderPagingApi(params)
                 if (res.code === 1) {
                     this.order = res.data.records
-                    if (this.order && this.order[0].orderDetails) {
+                    if (this.order && this.order[0] && this.order[0].orderDetails) {
                         let number = 0
                         this.order[0].orderDetails.forEach(item => {
                             number += item.number
@@ -157,16 +157,16 @@
                 }
             },
             async getUserInfo() {
-                const res = localStorage.getItem('userInfo');
+                const res = JSON.parse(localStorage.getItem('userInfo') || '{}');
 
-                if (res) {
-                    this.user.id = res.data.id;
-                    this.user.name = res.data.name;
-                    this.user.sex = res.data.sex;
-                    this.user.email = res.data.email;
-                    this.user.avatar = res.data.avatar;
+                if (res && res.id) {
+                    this.user.id = res.id;
+                    this.user.name = res.name;
+                    this.user.sex = res.sex;
+                    this.user.email = res.email;
+                    this.user.avatar = res.avatar;
                 } else {
-                    this.$notify({type: 'warning', message: res.msg});
+                    this.$notify({type: 'warning', message: '用户信息获取失败'});
                 }
             },
             getStatus(status) {

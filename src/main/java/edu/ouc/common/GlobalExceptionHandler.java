@@ -48,4 +48,11 @@ public class GlobalExceptionHandler {
     public R<String> customerExceptionHandler(CustomException ce) {
         return R.error(ce.getMessage());
     }
+
+    // 捕获其他未预期的异常，打印完整堆栈便于排查
+    @ExceptionHandler(Exception.class)
+    public R<String> globalExceptionHandler(Exception ex) {
+        log.error("未预期的服务器异常: ", ex);
+        return R.error("服务器内部错误: " + ex.getMessage());
+    }
 }

@@ -53,7 +53,7 @@
                         <div class="numPrice">
                             <span class="num">x{{item.number}}</span>
                             <div class="price">
-                                <span class="spanMoney">￥</span>{{item.amount}}
+                                <span class="spanMoney">￥</span>{{Number(item.amount).toFixed(2)}}
                             </div>
                         </div>
                     </div>
@@ -133,9 +133,9 @@
             goodsPrice() {
                 let price = 0
                 this.cartData.forEach(item => {
-                    price += (item.number * item.amount)
+                    price += (item.number * Number(item.amount))
                 })
-                return price
+                return price.toFixed(2)
             }
         },
         created() {
@@ -205,7 +205,7 @@
                     window.requestAnimationFrame(() => {
                         window.location.replace('/front/page/pay.html?orderId=' + order.id
                             + '&orderNumber=' + order.number
-                            + '&amount=' + order.amount)
+                            + '&amount=' + Number(order.amount).toFixed(2))
                     })
                 } else {
                     this.$notify({type: 'warning', message: res.msg});

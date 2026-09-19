@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 /**
@@ -72,12 +72,15 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
 
         // 4.调用用户业务层user表获取用户信息
         User user = userService.getById(userId);
+        if (user == null) {
+            throw new CustomException("用户信息获取失败，请确认已登录C端账号（如同时登录了管理端，请使用无痕窗口打开C端）");
+        }
 
 
         // 5.为订单对象的属性一一赋值
         long orderId = IdWorker.getId();
-        // 使用AtomicInteger计算商品总金额，保证高并发下的线程安全
-        AtomicInteger amount = new AtomicInteger(0);
+        // 使用AtomicReference<BigDecimal>计算商品总金额，保证高并发下的线程安全且不丢失小数精度
+        AtomicReference<BigDecimal> amount = new AtomicReference<>(BigDecimal.ZERO);
 
         // 6.新增订单明细，用购物车的stream流复制
         List<OrderDetail> orderDetails = shoppingCarts.stream().map(shoppingCart -> {
@@ -92,18 +95,19 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
             orderDetail.setImage(shoppingCart.getImage());
             orderDetail.setAmount(shoppingCart.getAmount());
             // 计算订单总金额
-            amount.addAndGet(shoppingCart.getAmount().multiply(new BigDecimal(shoppingCart.getNumber())).intValue());
+            amount.set(amount.get().add(shoppingCart.getAmount().multiply(new BigDecimal(shoppingCart.getNumber()))));
             return orderDetail;
         }).collect(Collectors.toList());
 
         // 生成并设置订单号
+        orders.setId(orderId);
         orders.setNumber(String.valueOf(orderId));
         // 设置下单用户ID
         orders.setUserId(userId);
         // 设置订单状态为待付款(支付完成后再改为待派送)
         orders.setStatus(1);
         // 设置商品总金额
-        orders.setAmount(new BigDecimal(amount.get()));
+        orders.setAmount(amount.get());
         // 设置订单客户手机号
         orders.setPhone(addressBook.getPhone());
         // 设置收货人姓名
@@ -128,6 +132,12 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
 
         // 返回订单对象(含订单号、金额等信息，供前端支付页面使用)
         return orders;
+    }
+
+    // 根据ID查询单个订单
+    @Override
+    public Orders getOrderById(Long id) {
+        return this.getById(id);
     }
 
     // 用户支付，更新订单状态为待派送
@@ -182,7 +192,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
             BeanUtils.copyProperties(order, orderDto);
             // 7.3 调用OrderDetail业务层获取订单明细集合
             LambdaQueryWrapper<OrderDetail> orderDetailLqw = new LambdaQueryWrapper<>();
-            orderDetailLqw.eq(OrderDetail::getOrderId, order.getNumber());
+            orderDetailLqw.eq(OrderDetail::getOrderId, order.getId());
             List<OrderDetail> orderDetails = orderDetailService.list(orderDetailLqw);
             // 7.4 设置orderDto的订单明细属性
             orderDto.setOrderDetails(orderDetails);
@@ -228,7 +238,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
             BeanUtils.copyProperties(order, orderDto);
             // 7.3 调用OrderDetail业务层获取订单明细集合
             LambdaQueryWrapper<OrderDetail> orderDetailLqw = new LambdaQueryWrapper<>();
-            orderDetailLqw.eq(OrderDetail::getOrderId, order.getNumber());
+            orderDetailLqw.eq(OrderDetail::getOrderId, order.getId());
             List<OrderDetail> orderDetails = orderDetailService.list(orderDetailLqw);
             // 7.4 设置orderDto的订单明细属性
             orderDto.setOrderDetails(orderDetails);
@@ -244,6 +254,17 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
     // 修改订单状态
     @Override
     public Boolean update(Orders order) {
-        return this.updateById(order);
+        log.info("修改订单状态: id={}, status={}", order.getId(), order.getStatus());
+        boolean result = this.updateById(order);
+        log.info("修改订单状态结果: id={}, status={}, result={}", order.getId(), order.getStatus(), result);
+        return result;
+    }
+
+    // 获取待处理订单数量（status=2待派送 + status=3已派送）
+    @Override
+    public Integer getNewOrderCount() {
+        LambdaQueryWrapper<Orders> lqw = new LambdaQueryWrapper<>();
+        lqw.in(Orders::getStatus, 2, 3);
+        return Math.toIntExact(this.count(lqw));
     }
 }

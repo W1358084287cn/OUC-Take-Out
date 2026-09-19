@@ -24,6 +24,14 @@
             width: 100%;
             height: 100%;
         }
+
+        .menu-badge {
+            margin-left: 8px;
+        }
+
+        .menu-badge .el-badge__content {
+            background-color: #ff4444;
+        }
     </style>
 </head>
 
@@ -60,12 +68,14 @@
                             >
                                 <i :class="iconfont" :class="sub.icon"></i>
                                 <span slot="title">{{sub.name}}</span>
+                                <el-badge :value="newOrderCount" :hidden="newOrderCount === 0" class="menu-badge" v-if="sub.id === '6'" />
                             </el-menu-item
                             >
                         </el-submenu>
                         <el-menu-item v-else :index="item.id" @click="menuHandle(item,false)">
                             <i class="iconfont" :class="item.icon"></i>
                             <span slot="title">{{item.name}}</span>
+                            <el-badge :value="newOrderCount" :hidden="newOrderCount === 0" class="menu-badge" v-if="item.id === '6'" />
                         </el-menu-item>
                     </div>
                 </el-menu>
@@ -161,7 +171,12 @@
                 headTitle: '员工管理',
                 goBackFlag: false,
                 loading: true,
-                timer: null
+                timer: null,
+                newOrderCount: 0,
+                pollTimer: null,
+                lastNewOrderCount: 0,
+                notificationAudio: null,
+                firstFetch: true
             }
         },
         computed: {},
@@ -171,13 +186,29 @@
                 this.userInfo = JSON.parse(userInfo)
             }
             this.closeLoading()
+            this.startPolling()
         },
         beforeDestroy() {
             this.timer = null
             clearTimeout(this.timer)
+            if (this.pollTimer) {
+                clearInterval(this.pollTimer)
+                this.pollTimer = null
+            }
         },
         mounted() {
             window.menuHandle = this.menuHandle
+            // 初始化通知音效
+            this.notificationAudio = new Audio('/backend/audio/notification.mp3')
+            // 解决Chrome自动播放限制：首次用户交互时"解锁"音频
+            const unlockAudio = () => {
+                this.notificationAudio.play().then(() => {
+                    this.notificationAudio.pause()
+                    this.notificationAudio.currentTime = 0
+                }).catch(() => {})
+                document.removeEventListener('click', unlockAudio)
+            }
+            document.addEventListener('click', unlockAudio)
         },
         methods: {
             logout() {
@@ -187,6 +218,53 @@
                         window.location.href = '/backend/page/login/login.html' // 跳转回登录页面
                     }
                 })
+            },
+            // 启动定时轮询，每10秒查询待处理订单数量
+            startPolling() {
+                this.fetchNewOrderCount()
+                this.pollTimer = setInterval(() => {
+                    this.fetchNewOrderCount()
+                }, 10000)
+            },
+            // 查询待处理订单数量
+            fetchNewOrderCount() {
+                $axios({
+                    url: '/order/newCount',
+                    method: 'get'
+                }).then(res => {
+                    if (res.code === 1) {
+                        const count = res.data || 0
+                        if (this.firstFetch) {
+                            this.firstFetch = false
+                        } else if (count > this.lastNewOrderCount) {
+                            this.alertNewOrder(count)
+                        }
+                        this.lastNewOrderCount = count
+                        this.newOrderCount = count
+                    }
+                }).catch(() => {
+                    // 轮询失败静默处理
+                })
+            },
+            // 新订单提醒：语音 + 横幅
+            alertNewOrder(count) {
+                // 横幅通知
+                this.$notify({
+                    title: '新订单提醒',
+                    message: '您有 ' + count + ' 个待处理订单，请及时处理',
+                    type: 'warning',
+                    duration: 5000,
+                    position: 'top-right'
+                })
+                // 播放通知音效
+                this.playNotificationSound()
+            },
+            // 播放通知音效WAV文件
+            playNotificationSound() {
+                if (this.notificationAudio) {
+                    this.notificationAudio.currentTime = 0
+                    this.notificationAudio.play().catch(() => {})
+                }
             },
             goBack() {
                 // window.location.href = 'javascript:history.go(-1)'

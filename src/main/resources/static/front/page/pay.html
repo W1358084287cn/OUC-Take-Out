@@ -25,7 +25,7 @@
         <div class="divAmount">
             <div class="label">支付金额</div>
             <div class="amount">
-                <span class="symbol">￥</span>{{ amount }}
+                <span class="symbol">￥</span>{{ Number(amount).toFixed(2) }}
             </div>
             <div class="orderNo">订单编号：{{ orderNumber }}</div>
         </div>
@@ -68,7 +68,7 @@
                 <div class="qrTip">
                     请使用{{ payMethod === 1 ? '微信' : '支付宝' }}扫一扫完成支付
                 </div>
-                <div class="qrDesc">金额：￥{{ amount }}，支付后将自动跳转</div>
+                <div class="qrDesc">金额：￥{{ Number(amount).toFixed(2) }}，支付后将自动跳转</div>
             </div>
 
             <!-- 银行卡：表单 -->
@@ -108,7 +108,7 @@
     <!-- 底部支付按钮 -->
     <div class="divBottom">
         <div class="btnPay" @click="confirmPay">
-            确认支付 ￥{{ amount }}
+            确认支付 ￥{{ Number(amount).toFixed(2) }}
         </div>
     </div>
 
@@ -117,7 +117,7 @@
         <div class="paySuccessBox" @click.stop>
             <img src="./../images/success.png" class="successIcon"/>
             <div class="successTitle">支付成功</div>
-            <div class="successDesc">￥{{ amount }} 已支付，正在跳转…</div>
+            <div class="successDesc">￥{{ Number(amount).toFixed(2) }} 已支付，正在跳转…</div>
         </div>
     </div>
 </div>
@@ -148,8 +148,8 @@
         },
         computed: {
             qrCodeUrl() {
-                // 使用在线二维码API生成收款码，内容为订单号+金额
-                const content = 'pay://' + this.orderNumber + '?amount=' + this.amount
+                // 生成模拟支付链接（以项目实际URL为前缀，微信/支付宝扫码可识别为网页链接）
+                const content = window.location.origin + '/front/page/pay.html?orderId=' + this.orderId + '&orderNumber=' + this.orderNumber + '&amount=' + this.amount
                 return 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(content)
             },
             cardNoDisplay() {
