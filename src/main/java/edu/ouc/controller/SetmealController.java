@@ -4,10 +4,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import edu.ouc.common.R;
 import edu.ouc.dto.SetmealDto;
 import edu.ouc.entity.Setmeal;
-import edu.ouc.service.ISetmealDishService;
 import edu.ouc.service.ISetmealService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,22 +14,19 @@ import java.util.List;
 
 
 /**
- * @Author: Sihang Xie
- * @Description: 套餐管理的控制层
- * @Date: 2022/10/12 12:00
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 套餐管理的控制层
+ * Date: 2022/10/12 12:00
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @RestController
 @RequestMapping("/setmeal")
+@RequiredArgsConstructor
 public class SetmealController {
 
-    @Autowired
-    private ISetmealService setmealService;
-
-    @Autowired
-    private ISetmealDishService setmealDishService;
+    private final ISetmealService setmealService;
 
     // 保存新套餐，同时插入套餐对应菜品
     @PostMapping

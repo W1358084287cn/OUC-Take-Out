@@ -13,11 +13,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * @Author: Sihang Xie
- * @Description: 套餐菜品关联表的业务层接口的实现类
- * @Date: 2022/10/12 11:57
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 套餐菜品关联表的业务层接口的实现类
+ * Date: 2022/10/12 11:57
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @Service

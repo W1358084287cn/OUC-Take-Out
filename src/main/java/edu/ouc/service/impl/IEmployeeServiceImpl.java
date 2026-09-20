@@ -7,22 +7,24 @@ import edu.ouc.entity.Employee;
 import edu.ouc.mapper.EmployeeMapper;
 import edu.ouc.service.IEmployeeService;
 import org.apache.logging.log4j.util.Strings;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
- * @Author: Sihang Xie
- * @Description: 员工employee的创建服务层接口实现类
- * @Date: 2022/9/29 13:24
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 员工employee的创建服务层接口实现类
+ * Date: 2022/9/29 13:24
+ * Version: 0.0.1
+ * Modified By:
  */
 @Service
 public class IEmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> implements IEmployeeService {
 
     // 自动注入数据层
-    @Autowired
-    private EmployeeMapper employeeDAO;
+    private final EmployeeMapper employeeDAO;
+
+    public IEmployeeServiceImpl(EmployeeMapper employeeDAO) {
+        this.employeeDAO = employeeDAO;
+    }
 
 
     // 分页查询+条件查询

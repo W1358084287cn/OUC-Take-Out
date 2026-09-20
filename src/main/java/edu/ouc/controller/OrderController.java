@@ -6,22 +6,22 @@ import edu.ouc.dto.OrderDto;
 import edu.ouc.entity.Orders;
 import edu.ouc.service.impl.OrderServiceImpl;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * @Author: Sihang Xie
- * @Description: 订单控制层
- * @Date: 2022/10/27 10:45
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 订单控制层
+ * Date: 2022/10/27 10:45
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @RestController
 @RequestMapping("/order")
+@RequiredArgsConstructor
 public class OrderController {
-    @Autowired
-    private OrderServiceImpl orderService;
+    private final OrderServiceImpl orderService;
 
     // 提交(添加)订单，返回订单对象(含订单号、金额)
     @PostMapping("/submit")

@@ -6,11 +6,11 @@ import edu.ouc.entity.AddressBook;
 import java.util.List;
 
 /**
- * @Author: Sihang Xie
- * @Description: 地址簿业务层接口
- * @Date: 2022/10/23 15:30
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 地址簿业务层接口
+ * Date: 2022/10/23 15:30
+ * Version: 0.0.1
+ * Modified By:
  */
 public interface IAddressBookService extends IService<AddressBook> {
 

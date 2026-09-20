@@ -1,23 +1,29 @@
 package edu.ouc.filter;
 
-import com.alibaba.fastjson.JSON;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ouc.common.BaseContext;
 import edu.ouc.common.R;
+import edu.ouc.entity.User;
+import edu.ouc.service.IUserService;
+import edu.ouc.utils.TokenUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.AntPathMatcher;
+import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.context.support.WebApplicationContextUtils;
 
 import javax.servlet.*;
 import javax.servlet.annotation.WebFilter;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
- * @Author: Sihang Xie
- * @Description: 用户登录检查过滤器
- * @Date: 2022/9/30 9:47
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 用户登录检查过滤器
+ * Date: 2022/9/30 9:47
+ * Version: 0.0.1
+ * Modified By:
  */
 // 过滤器注解
 // filterName：过滤器名称，可以随便起
@@ -61,38 +67,89 @@ public class LoginCheckFilter implements Filter {
             return;
         }
 
-        // 5.如果需要处理，则判断B端员工是否登录
-        if (request.getSession().getAttribute("employee") != null) {
-            // 能进入说明已经登录，直接放行
-            Long id = (Long) request.getSession().getAttribute("employee");
-            log.info("B端员工{}已登录", id);
+        // 5.判断本次请求是否为C端业务接口（订单、购物车、地址簿、C端用户）
+        // C端接口优先使用user身份，避免与B端employee登录态冲突
+        boolean isClientApi = requestURI.startsWith("/order/submit")
+                || requestURI.startsWith("/order/userPage")
+                || requestURI.startsWith("/shoppingCart")
+                || requestURI.startsWith("/addressBook")
+                || requestURI.startsWith("/user/loginout");
 
-            // 把当前登录用户的ID保存到ThreadLocal中
-            BaseContext.setCurrentUserId(id);
+        if (isClientApi) {
+            // C端业务接口：优先检查user登录态
+            if (request.getSession().getAttribute("user") != null) {
+                Long userId = (Long) request.getSession().getAttribute("user");
+                log.info("C端邮箱用户{}已登录", userId);
+                BaseContext.setCurrentUserId(userId);
+                filterChain.doFilter(request, response);
+                return;
+            }
+        } else {
+            // B端业务接口：优先检查employee登录态
+            if (request.getSession().getAttribute("employee") != null) {
+                Long id = (Long) request.getSession().getAttribute("employee");
+                log.info("B端员工{}已登录", id);
+                BaseContext.setCurrentUserId(id);
+                filterChain.doFilter(request, response);
+                return;
+            }
 
-            filterChain.doFilter(request, response);
-            return;
+            // B端请求也允许user登录态访问（如后台查看C端数据）
+            if (request.getSession().getAttribute("user") != null) {
+                Long userId = (Long) request.getSession().getAttribute("user");
+                log.info("B端请求使用C端用户{}身份", userId);
+                BaseContext.setCurrentUserId(userId);
+                filterChain.doFilter(request, response);
+                return;
+            }
         }
 
-        // 6.如果需要处理，判断C端用户是否登录
-        if (request.getSession().getAttribute("user") != null) {
-            // 能进入说明已经登录，直接放行
-            Long userId = (Long) request.getSession().getAttribute("user");
-            log.info("邮箱用户{}已登录", userId);
+        log.info("B端员工和C端用户Session均未命中，尝试Cookie记住我自动登录");
 
-            // 把当前登录用户的ID保存到ThreadLocal中
-            BaseContext.setCurrentUserId(userId);
+        // 7.检查Cookie中的记住我Token，实现30天自动登录
+        Cookie[] cookies = request.getCookies();
+        String rememberToken = null;
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("remember".equals(cookie.getName())) {
+                    rememberToken = cookie.getValue();
+                    break;
+                }
+            }
+        }
+        if (rememberToken != null) {
+            // 从Spring容器获取服务（过滤器不是Spring Bean，通过WebApplicationContextUtils获取）
+            WebApplicationContext context = WebApplicationContextUtils
+                    .getWebApplicationContext(request.getServletContext());
+            if (context != null) {
+                // 读取配置中的签名密钥
+                String rememberKey = context.getEnvironment()
+                        .getProperty("reggie.remember-key");
+                IUserService userService = context.getBean(IUserService.class);
 
-            // 放行
-            filterChain.doFilter(request, response);
-            return;
+                // 校验Token有效性
+                Long userId = TokenUtils.validateRememberToken(rememberToken, rememberKey);
+                if (userId != null) {
+                    // 反查用户是否存在且未被禁用
+                    User user = userService.getById(userId);
+                    if (user != null && user.getStatus() == 1) {
+                        // 自动登录成功，补设Session
+                        request.getSession().setAttribute("user", userId);
+                        BaseContext.setCurrentUserId(userId);
+                        log.info("Cookie记住我自动登录成功，用户ID：{}", userId);
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                    log.info("Cookie记住我Token有效，但用户不存在或已被禁用，用户ID：{}", userId);
+                }
+            }
         }
 
         log.info("用户未登录");
 
-        // 7.走到这里就是没登录
+        // 8.走到这里就是没登录
         // 向浏览器响应一个流，让前端读到R里面的数据
-        response.getWriter().write(JSON.toJSONString(R.error("NOTLOGIN")));
+        response.getWriter().write(new ObjectMapper().writeValueAsString(R.error("NOTLOGIN")));
     }
 
     // 核查请求URL是否在放行URL数组中，检查本次请求是否需要放行

@@ -12,11 +12,11 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * @Author: Sihang Xie
- * @Description: 购物车接口实现类
- * @Date: 2022/10/24 15:07
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 购物车接口实现类
+ * Date: 2022/10/24 15:07
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @Service

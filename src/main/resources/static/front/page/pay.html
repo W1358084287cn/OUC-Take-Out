@@ -25,9 +25,9 @@
         <div class="divAmount">
             <div class="label">支付金额</div>
             <div class="amount">
-                <span class="symbol">￥</span>{{ Number(amount).toFixed(2) }}
+                <span class="symbol">￥</span>{{ Number(amount || 0).toFixed(2) }}
             </div>
-            <div class="orderNo">订单编号：{{ orderNumber }}</div>
+            <div class="orderNo">订单编号：{{ orderNumber || '暂无订单号' }}</div>
         </div>
 
         <!-- 支付方式选择 -->
@@ -68,7 +68,7 @@
                 <div class="qrTip">
                     请使用{{ payMethod === 1 ? '微信' : '支付宝' }}扫一扫完成支付
                 </div>
-                <div class="qrDesc">金额：￥{{ Number(amount).toFixed(2) }}，支付后将自动跳转</div>
+                <div class="qrDesc">金额：￥{{ Number(amount || 0).toFixed(2) }}，支付后将自动跳转</div>
             </div>
 
             <!-- 银行卡：表单 -->
@@ -83,21 +83,21 @@
                 </div>
                 <div class="cardForm">
                     <div class="formItem">
-                        <label>银行卡号</label>
-                        <input type="text" v-model="cardNo" placeholder="请输入银行卡号" maxlength="19"/>
+                        <label for="cardNo">银行卡号</label>
+                        <input id="cardNo" type="text" v-model="cardNo" placeholder="请输入银行卡号" maxlength="19"/>
                     </div>
                     <div class="formItem">
-                        <label>持卡人</label>
-                        <input type="text" v-model="cardHolder" placeholder="请输入持卡人姓名"/>
+                        <label for="cardHolder">持卡人</label>
+                        <input id="cardHolder" type="text" v-model="cardHolder" placeholder="请输入持卡人姓名"/>
                     </div>
                     <div class="formRow">
                         <div class="formItem half">
-                            <label>有效期</label>
-                            <input type="text" v-model="cardExpire" placeholder="MM/YY" maxlength="5"/>
+                            <label for="cardExpire">有效期</label>
+                            <input id="cardExpire" type="text" v-model="cardExpire" placeholder="MM/YY" maxlength="5"/>
                         </div>
                         <div class="formItem half">
-                            <label>CVV</label>
-                            <input type="text" v-model="cardCvv" placeholder="后三位" maxlength="3"/>
+                            <label for="cardCvv">CVV</label>
+                            <input id="cardCvv" type="text" v-model="cardCvv" placeholder="后三位" maxlength="3"/>
                         </div>
                     </div>
                 </div>
@@ -108,16 +108,16 @@
     <!-- 底部支付按钮 -->
     <div class="divBottom">
         <div class="btnPay" @click="confirmPay">
-            确认支付 ￥{{ Number(amount).toFixed(2) }}
+            确认支付 ￥{{ Number(amount || 0).toFixed(2) }}
         </div>
     </div>
 
     <!-- 支付成功弹窗 -->
     <div class="payMask" v-if="showSuccess" @click="toSuccessPage">
         <div class="paySuccessBox" @click.stop>
-            <img src="./../images/success.png" class="successIcon"/>
+            <img src="./../images/success.png" class="successIcon" alt="支付成功"/>
             <div class="successTitle">支付成功</div>
-            <div class="successDesc">￥{{ Number(amount).toFixed(2) }} 已支付，正在跳转…</div>
+            <div class="successDesc">￥{{ Number(amount || 0).toFixed(2) }} 已支付，正在跳转…</div>
         </div>
     </div>
 </div>

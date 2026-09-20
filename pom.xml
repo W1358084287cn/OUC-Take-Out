@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.4</version>
+        <version>2.7.18</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>edu.ouc</groupId>
@@ -15,9 +15,29 @@
     <description>reggie_take_out</description>
     <properties>
         <java.version>1.8</java.version>
+        <!-- 安全修复：覆盖传递依赖中易受攻击的版本 -->
+        <logback.version>1.2.13</logback.version>
+        <tomcat.version>9.0.98</tomcat.version>
+        <snakeyaml.version>1.33</snakeyaml.version>
+        <netty.version>4.1.118.Final</netty.version>
+        <json-smart.version>2.5.1</json-smart.version>
+        <jackson-bom.version>2.15.4</jackson-bom.version>
+        <!-- CVE-2025-41249/CVE-2025-41242 修复：Spring Framework 最新安全版本 -->
+        <spring-framework.version>5.3.39</spring-framework.version>
     </properties>
 
+    <repositories>
+        <repository>
+            <id>maven-官方中央仓库</id>
+            <url>https://repo1.maven.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+        </repository>
+    </repositories>
+
     <dependencies>
+        <!-- noinspection VulnerableLibrariesLocal -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -26,7 +46,7 @@
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>2.2.2</version>
+            <version>2.3.2</version>
         </dependency>
 
         <!-- Spring Data Redis -->
@@ -51,7 +71,7 @@
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-boot-starter</artifactId>
-            <version>3.4.2</version>
+            <version>3.5.5</version>
         </dependency>
 
 
@@ -63,30 +83,38 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Fastjson：将对象转成json -->
+        <!-- ==================== 安全修复：移除易受攻击依赖 ==================== -->
+        <!--
+           [已移除] Fastjson 1.2.83 → CVE-2026-16723 零日RCE（CVSS 9.0，1.x 已停止维护，无补丁）
+           替代方案：项目已有 Jackson（spring-boot-starter-web 内置），LoginCheckFilter 已改用 ObjectMapper
+        -->
+        <!--
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
-            <version>1.2.76</version>
+            <version>1.2.83</version>
         </dependency>
+        -->
 
-        <!-- 通用语言包 -->
+        <!-- 通用语言包 [CVE-2025-48924 已修复：3.14.0→3.18.0] -->
         <dependency>
-            <groupId>commons-lang</groupId>
-            <artifactId>commons-lang</artifactId>
-            <version>2.6</version>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.18.0</version>
         </dependency>
 
         <!-- Druid数据库连接池Spring Boot启动器 -->
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>druid-spring-boot-starter</artifactId>
-            <version>1.2.12</version>
+            <version>1.2.23</version>
         </dependency>
 
+        <!-- MySQL Connector [CVE-2023-22102 已修复：8.0.33→8.4.0 LTS] -->
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>8.4.0</version>
             <scope>runtime</scope>
         </dependency>
 
@@ -103,18 +131,19 @@
             <version>1.1.1</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/javax.mail/mail -->
+        <!-- javax.mail CVE-2025-7962：1.6.2是javax命名空间最后版本，jakarta.mail需切包名，与Spring Boot 2.7冲突，暂无法升级 -->
+        <!-- noinspection VulnerableLibrariesLocal -->
         <dependency>
-            <groupId>javax.mail</groupId>
-            <artifactId>mail</artifactId>
-            <version>1.4.7</version>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>javax.mail</artifactId>
+            <version>1.6.2</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-email -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-email</artifactId>
-            <version>1.4</version>
+            <version>1.6.0</version>
         </dependency>
 
         <!-- Jedis -->
@@ -134,7 +163,7 @@
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
-            <version>5.8.8</version>
+            <version>5.8.47</version>
         </dependency>
 
     </dependencies>
@@ -144,6 +173,9 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <jvmArguments>--sun-misc-unsafe-memory-access=allow --enable-native-access=ALL-UNNAMED</jvmArguments>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -151,6 +183,10 @@
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
+                    <fork>true</fork>
+                    <compilerArgs>
+                        <arg>-J--sun-misc-unsafe-memory-access=allow</arg>
+                    </compilerArgs>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

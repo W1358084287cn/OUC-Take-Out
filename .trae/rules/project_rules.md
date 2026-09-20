@@ -1,4 +1,4 @@
-﻿﻿﻿﻿# 项目规则索引（README.md 全量抽取）
+﻿﻿﻿﻿﻿﻿﻿# 项目规则索引（README.md 全量抽取）
 
 ## GATE RULE（最高优先级总规则）
 **【最高优先级 · 守门总规则】**
@@ -183,6 +183,18 @@
 - 前端静态资源：src/main/resources/static/backend/（后台） / src/main/resources/static/front/（用户端）
 - 静态资源子目录：api/、js/、page/、styles/、plugins/、images/、fonts/
 - 配置文件：src/main/resources/application.yml
+
+### C端30天保持登录（记住我）
+- 技术方案：Cookie 签名 Token（自包含验证），零数据库改动，无需写表/改表/增字段
+- Token 格式：Base64( userIdInHex + ":" + expiryTimestamp + ":" + HMAC-SHA256(userIdInHex:expiry, secret) )，userId 按十六进制编码避免 Base64 中出现特殊字符
+- 签名密钥：application.yml 中配置 reggie.remember-key，不少于 32 字符随机字符串
+- Token 生成工具类：TokenUtils.java（包路径 edu.ouc.utils），静态方法 generateRememberToken(Long userId, String secret, int days) / validateRememberToken(String token, String secret)
+- Cookie 设置：登录时若前端传 rememberMe=true，生成 Token 写入 Cookie（name=remember, value=token, maxAge=2592000 即 30 天, httpOnly=true, path=/）
+- Cookie 清除：退出登录时删除 Cookie（maxAge=0）
+- 过滤器兼容：LoginCheckFilter 在 C 端 session 检查失败后，额外检查 Cookie remember 字段，解析 Token 获取 userId，反查 userService.getById(userId) 确认用户存在且 status=1，验证通过后补设 session.setAttribute("user", userId) + BaseContext.setCurrentUserId(userId)
+- 前端登录 UI：login.html 追加"30天内保持登录"复选框，默认不勾选，勾选时 loginApi 多传 rememberMe: true
+- 前端退出登录：loginoutApi 正常调用 /user/loginout，后端清 Cookie
+- 安全性：HttpOnly Cookie 防 XSS 窃取、HMAC 签名防篡改、内置过期时间服务端二次校验、用户 status=0 禁用即时失效、退出登录即时清除
 
 ---
 

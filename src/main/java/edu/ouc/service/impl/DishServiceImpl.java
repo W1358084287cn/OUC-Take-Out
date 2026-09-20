@@ -15,7 +15,6 @@ import edu.ouc.service.ISetmealService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
@@ -28,31 +27,35 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * @Author: Sihang Xie
- * @Description: 菜品的业务层接口实现类
- * @Date: 2022/10/3 10:24
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 菜品的业务层接口实现类
+ * Date: 2022/10/3 10:24
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
+// noinspection SpringTransactionalMethodCallsInspection
 @Service
 public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements IDishService {
 
 
-    @Autowired
-    private DishFlavorServiceImpl dishFlavorService;
+    private final DishFlavorServiceImpl dishFlavorService;
 
     // 注入分类业务层依赖
-    @Lazy
-    @Autowired
-    private CategoryServiceImpl categoryService;
+    private final CategoryServiceImpl categoryService;
 
-    @Autowired
-    private ISetmealService setmealService;
+    private final ISetmealService setmealService;
 
     // 自动注入StringRedisTemplate类对象
-    @Autowired
-    private StringRedisTemplate redisTemplate;
+    private final StringRedisTemplate redisTemplate;
+
+    public DishServiceImpl(DishFlavorServiceImpl dishFlavorService, @Lazy CategoryServiceImpl categoryService,
+                           ISetmealService setmealService, StringRedisTemplate redisTemplate) {
+        this.dishFlavorService = dishFlavorService;
+        this.categoryService = categoryService;
+        this.setmealService = setmealService;
+        this.redisTemplate = redisTemplate;
+    }
 
 
     // 新增菜品，同时插入菜品对应的口味数据

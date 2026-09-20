@@ -11,9 +11,8 @@ import edu.ouc.entity.*;
 import edu.ouc.mapper.OrderMapper;
 import edu.ouc.service.IOrderService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,24 +23,28 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 /**
- * @Author: Sihang Xie
- * @Description: 订单表orders业务层接口实现类
- * @Date: 2022/10/27 10:32
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 订单表orders业务层接口实现类
+ * Date: 2022/10/27 10:32
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @Service
 public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implements IOrderService {
 
-    @Autowired
-    private OrderDetailServiceImpl orderDetailService;
-    @Autowired
-    private ShoppingCartServiceImpl shoppingCartService;
-    @Autowired
-    private AddressBookServiceImpl addressBookService;
-    @Autowired
-    private UserServiceImpl userService;
+    private final OrderDetailServiceImpl orderDetailService;
+    private final ShoppingCartServiceImpl shoppingCartService;
+    private final AddressBookServiceImpl addressBookService;
+    private final UserServiceImpl userService;
+
+    public OrderServiceImpl(OrderDetailServiceImpl orderDetailService, ShoppingCartServiceImpl shoppingCartService,
+                            AddressBookServiceImpl addressBookService, UserServiceImpl userService) {
+        this.orderDetailService = orderDetailService;
+        this.shoppingCartService = shoppingCartService;
+        this.addressBookService = addressBookService;
+        this.userService = userService;
+    }
 
     // 提交(添加)订单，返回订单对象(含订单号)
     @Override
@@ -182,8 +185,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         // 5.除了Record都复制
         BeanUtils.copyProperties(ordersPage, dtoPage, "records");
 
-        // 6.获取当前用户所有的order对象
-        List<Orders> orders = this.list(lqw);
+        // 6.获取当前页的order对象（C端）
+        List<Orders> orders = ordersPage.getRecords();
         // 7.通过stream流逐一包装成OrderDto对象
         List<OrderDto> orderDtos = orders.stream().map(order -> {
             // 7.1 创建OrderDto对象
@@ -205,7 +208,6 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         return dtoPage;
     }
 
-    // 后台管理端获取订单分页展示
     @Override
     public Page<OrderDto> getAllPage(Long page, Long pageSize, String number, String beginTime, String endTime) {
         // 1.创建分页封装器
@@ -228,8 +230,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         // 5.除了Record都复制
         BeanUtils.copyProperties(ordersPage, dtoPage, "records");
 
-        // 6.获取当前用户所有的order对象
-        List<Orders> orders = this.list(lqw);
+        // 6.获取当前页的order对象（后台管理端）
+        List<Orders> orders = ordersPage.getRecords();
         // 7.通过stream流逐一包装成OrderDto对象
         List<OrderDto> orderDtos = orders.stream().map(order -> {
             // 7.1 创建OrderDto对象

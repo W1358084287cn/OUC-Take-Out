@@ -7,15 +7,15 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
- * @Author: Sihang Xie
- * @Description: 用户实体类User
- * @Date: 2022/10/22 10:10
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 用户实体类User
+ * Date: 2022/10/22 10:10
+ * Version: 0.0.1
+ * Modified By:
  */
 @Data
 public class User implements Serializable {
-    private static final Long serialVersionUID = 2L;
+    private static final long serialVersionUID = 2L;
 
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;

@@ -6,18 +6,19 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * @Author: Sihang Xie
- * @Description: 数据表employee的实体类
- * @Date: 2022/9/29 12:38
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 数据表employee的实体类
+ * Date: 2022/9/29 12:38
+ * Version: 0.0.1
+ * Modified By:
  */
 @Data
-public class Employee {
-    private static final Long serialVersionUID = 1L;// 序列化ID
+public class Employee implements Serializable {
+    private static final long serialVersionUID = 1L;// 序列化ID
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
     private String name;

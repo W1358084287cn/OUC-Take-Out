@@ -9,7 +9,6 @@ import edu.ouc.mapper.UserMapper;
 import edu.ouc.service.IUserService;
 import edu.ouc.utils.MailUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -19,19 +18,22 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * @Author: Sihang Xie
- * @Description: 用户业务层接口实现类
- * @Date: 2022/10/22 10:21
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 用户业务层接口实现类
+ * Date: 2022/10/22 10:21
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
     // 注入StringRedisTemplate对象
-    @Autowired
-    private StringRedisTemplate redisTemplate;
+    private final StringRedisTemplate redisTemplate;
+
+    public UserServiceImpl(StringRedisTemplate redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
 
     // 发送邮箱验证码
     @Override

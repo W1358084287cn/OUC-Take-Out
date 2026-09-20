@@ -16,11 +16,11 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * @Author: Sihang Xie
- * @Description: 公共的Controller组件
- * @Date: 2022/10/3 14:18
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 公共的Controller组件
+ * Date: 2022/10/3 14:18
+ * Version: 0.0.1
+ * Modified By:
  */
 @RestController
 @RequestMapping("/common")
@@ -33,31 +33,32 @@ public class CommonController {
 
     // 文件上传
     @PostMapping("/upload")
-    public R<String> upload(MultipartFile file) { // 入参名必须是file
-        // file是一个临时文件，需要转存到指定位置，否则本次请求完成后临时文件会删除
-
+    public R<String> upload(MultipartFile file) {
         // 获取原始文件名
-        String originalFilename = file.getOriginalFilename();   // 原始名称.jpg
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null) {
+            return R.error("文件名不能为空");
+        }
 
         // 截取原始名称的后缀
-        String suffix = originalFilename.substring(originalFilename.lastIndexOf("."));  //.jpg
+        String suffix = originalFilename.substring(originalFilename.lastIndexOf("."));
 
         // 使用UUID重新生成文件名，防止文件名称重复造成文件覆盖
-        String fileName = UUID.randomUUID().toString() + suffix;    // sdfaiourei.jpg
+        String fileName = UUID.randomUUID() + suffix;
 
         // 创建一个目录对象
         File dir = new File(basePath);
         // 判断当前目录是否存在
-        if (!dir.exists()) {
-            // 目录不存在需要创建
-            dir.mkdir();
+        if (!dir.exists() && !dir.mkdirs()) {
+            log.error("创建目录失败: {}", basePath);
+            return R.error("文件存储目录创建失败");
         }
 
         try {
             // 转存
             file.transferTo(new File(basePath + fileName));
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("文件上传失败", e);
         }
         // 返回文件名称即可
         return R.success(fileName);
@@ -65,20 +66,19 @@ public class CommonController {
 
     // 文件下载
     @GetMapping("/download")
-    public void download(String name, HttpServletResponse response) {   // 入参名字必须是name
+    public void download(String name, HttpServletResponse response) {
         FileInputStream fis = null;
         ServletOutputStream os = null;
 
         try {
             // 输入流，通过输入流读取文件内容
-            fis = new FileInputStream(new File(basePath + name));
+            fis = new FileInputStream(basePath + name);
 
             // 输出流，通过输出流将文件写回浏览器，在浏览器展示图片
             os = response.getOutputStream();
 
-            // 下面都是JavaSE中IO流的内容
             byte[] buffer = new byte[1024];
-            int len = 0;
+            int len;
             while ((len = fis.read(buffer)) != -1) {
                 os.write(buffer, 0, len);
                 os.flush();
@@ -92,13 +92,13 @@ public class CommonController {
                 if (fis != null)
                     fis.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("关闭文件输入流失败", e);
             }
             try {
                 if (os != null)
                     os.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("关闭输出流失败", e);
             }
         }
     }

@@ -6,20 +6,21 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * @Author: Sihang Xie
- * @Description: 订单的实体类
- * @Date: 2022/10/26 21:42
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 订单的实体类
+ * Date: 2022/10/26 21:42
+ * Version: 0.0.1
+ * Modified By:
  */
 @Data
-public class Orders {
+public class Orders implements Serializable {
 
-    private static final Long serialVersionUID = 5L;
+    private static final long serialVersionUID = 5L;
 
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;

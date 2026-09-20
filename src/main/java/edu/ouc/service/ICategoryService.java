@@ -5,11 +5,11 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import edu.ouc.entity.Category;
 
 /**
- * @Author: Sihang Xie
- * @Description: Category的业务层接口
- * @Date: 2022/10/2 14:40
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: Category的业务层接口
+ * Date: 2022/10/2 14:40
+ * Version: 0.0.1
+ * Modified By:
  */
 public interface ICategoryService extends IService<Category> {
 

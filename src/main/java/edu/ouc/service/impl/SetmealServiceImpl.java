@@ -15,11 +15,9 @@ import edu.ouc.service.ISetmealDishService;
 import edu.ouc.service.ISetmealService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,30 +26,29 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * @Author: Sihang Xie
- * @Description: 套餐的业务层接口的实现类
- * @Date: 2022/10/3 10:29
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 套餐的业务层接口的实现类
+ * Date: 2022/10/3 10:29
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
+// noinspection SpringTransactionalMethodCallsInspection
 @Service
 public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> implements ISetmealService {
 
-    @Autowired
-    private ISetmealDishService setmealDishService;
+    private final ISetmealDishService setmealDishService;
 
-    @Lazy
-    @Autowired
-    private ICategoryService categoryService;
+    private final ICategoryService categoryService;
 
-    @Lazy
-    @Autowired
-    private IDishService dishService;
+    private final IDishService dishService;
 
-    // 注入StringRedisTemplate
-    @Autowired
-    private StringRedisTemplate redisTemplate;
+    public SetmealServiceImpl(ISetmealDishService setmealDishService, @Lazy ICategoryService categoryService,
+                              @Lazy IDishService dishService) {
+        this.setmealDishService = setmealDishService;
+        this.categoryService = categoryService;
+        this.dishService = dishService;
+    }
 
 
     // 新增套餐，同时插入套餐对应菜品

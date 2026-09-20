@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -34,18 +34,17 @@
         >
             <van-cell v-for="(order,index) in orderList" :key="index" class="item">
                 <div class="timeStatus">
-                    <span>{{order.orderTime}}</span>
-                    <span>{{getStatus(order.status)}}</span>
-                    <!-- <span>正在派送</span> -->
+                    <span>{{order.orderTime || '暂无下单时间'}}</span>
+                    <span>{{getStatus(order.status) || '未知状态'}}</span>
                 </div>
                 <div class="dishList">
                     <div v-for="(item,index) in order.orderDetails" :key="index" class="item">
-                        <span>{{item.name}}</span>
-                        <span>x{{item.number}}</span>
+                        <span>{{item.name || '菜品名称'}}</span>
+                        <span>x{{item.number || 0}}</span>
                     </div>
                 </div>
                 <div class="result">
-                    <span>共{{order.sumNum}} 件商品,实付</span><span class="price">￥{{Number(order.amount).toFixed(2)}}</span>
+                    <span>共{{order.sumNum || 0}} 件商品,实付</span><span class="price">￥{{Number(order.amount || 0).toFixed(2)}}</span>
                 </div>
                 <div class="btn" v-if="order.status === 1 || order.status === 4">
                     <div class="btnAgain" v-if="order.status === 1" @click="goPay(order)">去付款</div>
@@ -56,7 +55,7 @@
     </div>
     <div class="divNoData" v-else>
         <div class="divContainer">
-            <img src="./../images/no_order.png"/>
+            <img src="./../images/no_order.png" alt="暂无订单"/>
             <div>暂无订单</div>
         </div>
     </div>

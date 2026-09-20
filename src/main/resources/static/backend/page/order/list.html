@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -185,7 +185,7 @@
 <script src="../../plugins/element-ui/index.js"></script>
 <!-- 引入axios -->
 <script src="../../plugins/axios/axios.min.js"></script>
-<script src="../../js/request.js"></script>
+<script src="../../js/request.js?v=20260919"></script>
 <script src="../../api/order.js?v=20260919"></script>
 <script>
     new Vue({
@@ -293,6 +293,8 @@
                     }).catch(err => {
                         this.$message.error('请求出错了：' + err)
                     })
+                }).catch(() => {
+                    // 用户点击取消，不执行任何操作
                 })
             },
             handleClose() {

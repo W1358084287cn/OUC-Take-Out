@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -28,19 +28,19 @@
     <div class="divContent">
         <div class="divItem" v-for="(item,index) in addressList" :key="index" @click.capture="itemClick(item)">
             <div class="divAddress">
-                <span :class="{spanCompany:item.label === '公司',spanHome:item.label === '家',spanSchool:item.label === '学校'}">{{item.label}}</span>
-                {{item.detail}}
+                <span :class="{spanCompany:item.label === '公司',spanHome:item.label === '家',spanSchool:item.label === '学校'}">{{item.label || '地址'}}</span>
+                {{item.detail || '暂无详细地址'}}
             </div>
             <div class="divUserPhone">
-                <span>{{item.consignee}}</span>
+                <span>{{item.consignee || '收货人'}}</span>
                 <span>{{item.sex === '0' ? '女士' : '先生'}}</span>
-                <span>{{item.phone}}</span>
+                <span>{{item.phone || '联系电话'}}</span>
             </div>
-            <img src="./../images/edit.png" @click.stop.prevent="toAddressEditPage(item)"/>
+            <img src="./../images/edit.png" alt="编辑地址" @click.stop.prevent="toAddressEditPage(item)"/>
             <div class="divSplit"></div>
             <div class="divDefault">
-                <img src="./../images/checked_true.png" v-if="item.isDefault === 1">
-                <img src="./../images/checked_false.png" @click.stop.prevent="setDefaultAddress(item)" v-else>设为默认地址
+                <img src="./../images/checked_true.png" alt="默认地址" v-if="item.isDefault === 1">
+                <img src="./../images/checked_false.png" alt="设为默认" @click.stop.prevent="setDefaultAddress(item)" v-else>设为默认地址
             </div>
         </div>
     </div>

@@ -4,25 +4,25 @@ import edu.ouc.common.R;
 import edu.ouc.entity.ShoppingCart;
 import edu.ouc.service.impl.ShoppingCartServiceImpl;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
- * @Author: Sihang Xie
- * @Description: 购物车控制层
- * @Date: 2022/10/24 15:09
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 购物车控制层
+ * Date: 2022/10/24 15:09
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @RestController
 @RequestMapping("/shoppingCart")
+@RequiredArgsConstructor
 public class ShoppingCartController {
 
-    @Autowired
-    private ShoppingCartServiceImpl shoppingCartService;
+    private final ShoppingCartServiceImpl shoppingCartService;
 
     // 添加菜品到购物车
     @PostMapping("/add")

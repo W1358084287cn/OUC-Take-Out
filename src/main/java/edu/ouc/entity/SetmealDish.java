@@ -6,19 +6,20 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * @Author: Sihang Xie
- * @Description: 套餐菜品关联表的实体类
- * @Date: 2022/10/12 11:36
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 套餐菜品关联表的实体类
+ * Date: 2022/10/12 11:36
+ * Version: 0.0.1
+ * Modified By:
  */
 @Data
-public class SetmealDish {
-    private static final Long serialVersionUID = 38L;
+public class SetmealDish implements Serializable {
+    private static final long serialVersionUID = 38L;
 
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;

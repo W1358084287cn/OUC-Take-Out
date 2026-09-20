@@ -5,11 +5,11 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import edu.ouc.entity.Employee;
 
 /**
- * @Author: Sihang Xie
- * @Description: 员工employee的创建服务层接口
- * @Date: 2022/9/29 13:19
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 员工employee的创建服务层接口
+ * Date: 2022/9/29 13:19
+ * Version: 0.0.1
+ * Modified By:
  */
 public interface IEmployeeService extends IService<Employee> {
 

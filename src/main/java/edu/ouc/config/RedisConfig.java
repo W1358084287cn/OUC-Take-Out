@@ -26,11 +26,11 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import java.time.Duration;
 
 /**
- * @Author: Sihang Xie
- * @Description:
- * @Date: 2022/11/12 15:42
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description:
+ * Date: 2022/11/12 15:42
+ * Version: 0.0.1
+ * Modified By:
  */
 @Configuration
 @EnableCaching  // 开启Spring Cache缓存注解
@@ -64,7 +64,7 @@ public class RedisConfig extends CachingConfigurerSupport {
         // 2.新版本Jackson推荐使用JsonMapper，与替换上面的老版本的ObjectMapper
         // JsonMapper继承了ObjectMapper
         JsonMapper jsonMapper = JsonMapper.builder()
-                .configure(MapperFeature.USE_ANNOTATIONS, false)
+                .disable(MapperFeature.USE_ANNOTATIONS)
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .build();
         jsonMapper.registerModule(new JavaTimeModule());
@@ -87,7 +87,7 @@ public class RedisConfig extends CachingConfigurerSupport {
     @Primary  //同类型多个bean时，默认生效! 默认缓存时间1小时!  可以选择!
     public RedisCacheManager cacheManagerHour(RedisConnectionFactory redisConnectionFactory) {
 
-        RedisCacheConfiguration instanceConfig = instanceConfig(1 * 3600L); //缓存时间1小时
+        RedisCacheConfiguration instanceConfig = instanceConfig(3600L); //缓存时间1小时
 
         //构建缓存对象
         return RedisCacheManager.builder(redisConnectionFactory)

@@ -8,11 +8,11 @@ import javax.servlet.http.HttpSession;
 import java.util.Map;
 
 /**
- * @Author: Sihang Xie
- * @Description: 用户业务层接口
- * @Date: 2022/10/22 10:20
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 用户业务层接口
+ * Date: 2022/10/22 10:20
+ * Version: 0.0.1
+ * Modified By:
  */
 public interface IUserService extends IService<User> {
     // 发送邮箱验证码

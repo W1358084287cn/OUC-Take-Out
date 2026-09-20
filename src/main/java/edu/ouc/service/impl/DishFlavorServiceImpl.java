@@ -8,11 +8,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * @Author: Sihang Xie
- * @Description: 菜品口味业务层接口的实现类
- * @Date: 2022/10/3 17:01
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 菜品口味业务层接口的实现类
+ * Date: 2022/10/3 17:01
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @Service

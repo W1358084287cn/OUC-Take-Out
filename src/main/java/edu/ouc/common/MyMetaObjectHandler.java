@@ -8,11 +8,11 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 
 /**
- * @Author: Sihang Xie
- * @Description: 自定义元数据对象处理器
- * @Date: 2022/10/2 11:48
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 自定义元数据对象处理器
+ * Date: 2022/10/2 11:48
+ * Version: 0.0.1
+ * Modified By:
  */
 @Component  // 让Spring管理
 @Slf4j

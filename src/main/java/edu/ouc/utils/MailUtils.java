@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.Properties;
 
 /**
- * @Author: Sihang Xie
- * @Description: 发送邮件验证码工具类
- * @Date: 2022/10/22 10:31
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 发送邮件验证码工具类
+ * Date: 2022/10/22 10:31
+ * Version: 0.0.1
+ * Modified By:
  */
 public class MailUtils {
 

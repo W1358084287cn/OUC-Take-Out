@@ -6,18 +6,19 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * @Author: Sihang Xie
- * @Description: 菜品口味的实体类
- * @Date: 2022/10/3 16:51
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 菜品口味的实体类
+ * Date: 2022/10/3 16:51
+ * Version: 0.0.1
+ * Modified By:
  */
 @Data
-public class DishFlavor {
-    private static final Long serialVersionUID = 313L;
+public class DishFlavor implements Serializable {
+    private static final long serialVersionUID = 313L;
 
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;

@@ -6,25 +6,25 @@ import edu.ouc.common.R;
 import edu.ouc.entity.Category;
 import edu.ouc.service.ICategoryService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
- * @Author: Sihang Xie
- * @Description: Category的表现层
- * @Date: 2022/10/2 14:45
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: Category的表现层
+ * Date: 2022/10/2 14:45
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @RestController
 @RequestMapping("/category")
+@RequiredArgsConstructor
 public class CategoryController {
 
-    @Autowired
-    private ICategoryService categoryService;
+    private final ICategoryService categoryService;
 
     // 新增分类
     @PostMapping

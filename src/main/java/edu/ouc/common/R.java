@@ -6,18 +6,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * @Author: Sihang Xie
- * @Description: 前后端统一格式协议，通用的返回结果类
- * @Date: 2022/9/29 13:54
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 前后端统一格式协议，通用的返回结果类
+ * Date: 2022/9/29 13:54
+ * Version: 0.0.1
+ * Modified By:
  */
 @Data
 public class R<T> {
     private Integer code;
     private T data;
     private String msg;
-    private Map map = new HashMap();// 动态数据
+    private Map<String, Object> map = new HashMap<>();// 动态数据
 
     public R() {
     }

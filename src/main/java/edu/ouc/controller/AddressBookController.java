@@ -4,24 +4,24 @@ import edu.ouc.common.R;
 import edu.ouc.entity.AddressBook;
 import edu.ouc.service.impl.AddressBookServiceImpl;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
- * @Author: Sihang Xie
- * @Description: 地址簿控制层
- * @Date: 2022/10/23 15:33
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 地址簿控制层
+ * Date: 2022/10/23 15:33
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @RestController
 @RequestMapping("/addressBook")
+@RequiredArgsConstructor
 public class AddressBookController {
-    @Autowired
-    private AddressBookServiceImpl addressBookService;
+    private final AddressBookServiceImpl addressBookService;
 
     // 新增地址
     @PostMapping

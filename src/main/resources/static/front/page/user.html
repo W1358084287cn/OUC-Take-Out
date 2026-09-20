@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -23,23 +23,23 @@
             <i class="el-icon-arrow-left" @click="goBack"></i>个人中心
         </div>
         <div class="divUser">
-            <img src="./../images/headPage.png"/>
+            <img src="./../images/headPage.png" alt="用户头像"/>
             <div class="desc">
-                <div class="divName">海之子{{user.name}} <img src="./../images/man.png"/></div>
-                <div class="divPhone">{{userEmail}}</div>
+                <div class="divName">海之子{{user.name || '用户'}} <img src="./../images/man.png" alt="性别"/></div>
+                <div class="divPhone">{{userEmail || '未设置邮箱'}}</div>
             </div>
         </div>
     </div>
     <div class="divContent">
         <div class="divLinks">
             <div class="item" @click="toAddressPage">
-                <img src="./../images/locations.png"/>
+                <img src="./../images/locations.png" alt="地址管理"/>
                 <span>地址管理</span>
                 <i class="el-icon-arrow-right"></i>
             </div>
             <div class="divSplit"></div>
             <div class="item" @click="toOrderPage">
-                <img src="./../images/orders.png"/>
+                <img src="./../images/orders.png" alt="历史订单"/>
                 <span>历史订单</span>
                 <i class="el-icon-arrow-right"></i>
             </div>
@@ -47,22 +47,27 @@
         <div class="divOrders" v-if="order[0]">
             <div class="title">最新订单</div>
             <div class="timeStatus">
-                <span>{{order[0].orderTime}}</span>
-                <span>{{getStatus(order[0].status)}}</span>
-                <!-- <span>正在派送</span> -->
+                <span>{{order[0].orderTime || '暂无下单时间'}}</span>
+                <span>{{getStatus(order[0].status) || '未知状态'}}</span>
             </div>
             <div class="dishList">
                 <div v-for="(item,index) in order[0].orderDetails" :key="index" class="item">
-                    <span>{{item.name}}</span>
-                    <span>x{{item.number}}</span>
+                    <span>{{item.name || '菜品名称'}}</span>
+                    <span>x{{item.number || 0}}</span>
                 </div>
             </div>
             <div class="result">
-                <span>共{{order[0].sumNum}} 件商品,实付</span>
-                <span class="price">￥{{order[0].amount}}</span>
+                <span>共{{order[0].sumNum || 0}} 件商品,实付</span>
+                <span class="price">￥{{Number(order[0].amount || 0).toFixed(2)}}</span>
             </div>
             <div class="btn" v-if="order[0].status === 4">
                 <div class="btnAgain" @click="addOrderAgain">再来一单</div>
+            </div>
+        </div>
+        <div class="divNoData" v-else>
+            <div class="divContainer">
+                <img src="./../images/no_order.png" alt="暂无订单"/>
+                <div>暂无订单</div>
             </div>
         </div>
         <div class="quitLogin" @click="toPageLogin">

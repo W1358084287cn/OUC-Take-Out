@@ -4,31 +4,27 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import edu.ouc.common.R;
 import edu.ouc.dto.DishDto;
 import edu.ouc.entity.Dish;
-import edu.ouc.service.impl.DishFlavorServiceImpl;
 import edu.ouc.service.impl.DishServiceImpl;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
- * @Author: Sihang Xie
- * @Description: 菜品的表现层
- * @Date: 2022/10/3 16:20
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 菜品的表现层
+ * Date: 2022/10/3 16:20
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @RestController
 @RequestMapping("/dish")
+@RequiredArgsConstructor
 public class DishController {
 
-    @Autowired
-    private DishServiceImpl dishService;
-
-    @Autowired
-    private DishFlavorServiceImpl dishFlavorService;
+    private final DishServiceImpl dishService;
 
     // 添加菜品，同时插入菜品对应的口味数据
     @PostMapping

@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * @Author: Sihang Xie
- * @Description: 套餐的业务层接口
- * @Date: 2022/10/3 10:28
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 套餐的业务层接口
+ * Date: 2022/10/3 10:28
+ * Version: 0.0.1
+ * Modified By:
  */
 public interface ISetmealService extends IService<Setmeal> {
 

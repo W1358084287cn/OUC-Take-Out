@@ -4,19 +4,20 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 /**
- * @Author: Sihang Xie
- * @Description: 订单明细实体类
- * @Date: 2022/10/27 10:14
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 订单明细实体类
+ * Date: 2022/10/27 10:14
+ * Version: 0.0.1
+ * Modified By:
  */
 @Data
-public class OrderDetail {
+public class OrderDetail implements Serializable {
 
-    private static final Long serialVersionUID = 8L;
+    private static final long serialVersionUID = 8L;
 
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;

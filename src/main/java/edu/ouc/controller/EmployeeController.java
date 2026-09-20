@@ -7,27 +7,28 @@ import edu.ouc.entity.Employee;
 import edu.ouc.service.IEmployeeService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.DigestUtils;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
- * @Author: Sihang Xie
- * @Description: 员工Employee表现层
- * @Date: 2022/9/29 13:48
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 员工Employee表现层
+ * Date: 2022/9/29 13:48
+ * Version: 0.0.1
+ * Modified By:
  */
 @Slf4j
 @RestController
 @RequestMapping("/employee")
+@RequiredArgsConstructor
 public class EmployeeController {
 
     // 注入业务层
-    @Autowired
-    private IEmployeeService empService;
+    private final IEmployeeService empService;
 
     // 后台员工登录方法
     @PostMapping("/login")
@@ -35,7 +36,7 @@ public class EmployeeController {
         String username = employee.getUsername();
         String password = employee.getPassword();
         // 1.对前端传入的密码进行md5加密
-        password = DigestUtils.md5DigestAsHex(password.getBytes());
+        password = md5Hex(password);
         // 2.根据前端传入的账号去数据库中查询
         // 2.1 创建查询条件对象
         LambdaQueryWrapper<Employee> lqw = new LambdaQueryWrapper<>();
@@ -72,7 +73,7 @@ public class EmployeeController {
 
     // 新增员工功能
     @PostMapping
-    public R<String> save(HttpServletRequest request, @RequestBody Employee employee) {
+    public R<String> save(@RequestBody Employee employee) {
 
         // 1.设置创建人ID
 //        employee.setCreateUser((Long) request.getSession().getAttribute("employee"));
@@ -82,7 +83,7 @@ public class EmployeeController {
 
         // 3.设置初始密码为身份证后6位，并经过MD5加密
         String idNumber = employee.getIdNumber();
-        String password = DigestUtils.md5DigestAsHex(idNumber.substring(idNumber.length() - 6).getBytes());
+        String password = md5Hex(idNumber.substring(idNumber.length() - 6));
         employee.setPassword(password);
 
         // 4.设置创建时间
@@ -125,5 +126,20 @@ public class EmployeeController {
             return R.success(employee);
         }
         return R.error("查询员工不存在");
+    }
+
+    // MD5加密工具方法，替代已废弃的DigestUtils.md5DigestAsHex(byte[])
+    private String md5Hex(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(input.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("MD5算法不可用", e);
+        }
     }
 }

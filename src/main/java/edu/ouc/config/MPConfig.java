@@ -6,11 +6,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * @Author: Sihang Xie
- * @Description: 用于分页功能的MP拦截器
- * @Date: 2022/9/30 17:42
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 用于分页功能的MP拦截器
+ * Date: 2022/9/30 17:42
+ * Version: 0.0.1
+ * Modified By:
  */
 @Configuration  // 声明为配置类，以便被Spring扫描到，读取配置
 public class MPConfig {

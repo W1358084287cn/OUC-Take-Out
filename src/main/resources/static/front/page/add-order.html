@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -28,10 +28,10 @@
     <div class="divContent">
         <div class="divAddress">
             <div @click="toAddressPage">
-                <div class="address">{{address.detail}}</div>
+                <div class="address">{{address.detail || '请选择收货地址'}}</div>
                 <div class="name">
-                    <span>{{address.consignee}}{{address.sex === '1' ? '先生':'女士'}}</span>
-                    <span>{{address.phone}}</span>
+                    <span>{{address.consignee ? (address.consignee + (address.sex === '1' ? '先生':'女士')) : '收货人姓名'}}</span>
+                    <span>{{address.phone || '联系电话'}}</span>
                 </div>
                 <i class="el-icon-arrow-right"></i>
             </div>
@@ -45,7 +45,7 @@
                 <div class="item" v-for="(item,index) in cartData" :key="index">
                     <el-image :src="imgPathConvert(item.image)">
                         <div slot="error" class="image-slot">
-                            <img src="./../images/noImg.png"/>
+                            <img src="./../images/noImg.png" alt="菜品图片"/>
                         </div>
                     </el-image>
                     <div class="desc">

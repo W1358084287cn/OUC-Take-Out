@@ -10,29 +10,30 @@ import edu.ouc.entity.Setmeal;
 import edu.ouc.mapper.CategoryMapper;
 import edu.ouc.service.ICategoryService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 /**
- * @Author: Sihang Xie
- * @Description: Category的业务层接口实现类
- * @Date: 2022/10/2 14:42
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: Category的业务层接口实现类
+ * Date: 2022/10/2 14:42
+ * Version: 0.0.1
+ * Modified By:
  */
 @Service
 @Slf4j
 public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> implements ICategoryService {
 
     // 注入菜品业务层
-    @Autowired
-    @Lazy
-    private DishServiceImpl dishService;
+    private final DishServiceImpl dishService;
 
     // 注入套餐业务层
-    @Autowired
-    private SetmealServiceImpl setmealService;
+    private final SetmealServiceImpl setmealService;
+
+    public CategoryServiceImpl(@Lazy DishServiceImpl dishService, SetmealServiceImpl setmealService) {
+        this.dishService = dishService;
+        this.setmealService = setmealService;
+    }
 
     // 分页查询
     @Override
@@ -65,7 +66,7 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
         dishLqw.eq(Dish::getCategoryId, id);
 
         // 1.3 返回查询结果的总数
-        int dishCount = dishService.count(dishLqw);
+        long dishCount = dishService.count(dishLqw);
 
         // 1.4 如果查询结果大于0，说明该分类已经关联菜品，抛出一个自定义的业务异常
         if (dishCount > 0) {
@@ -82,7 +83,7 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
         setmealLqw.eq(Setmeal::getCategoryId, id);
 
         // 2.3 返回查询结果的总数
-        Integer setmealCount = setmealService.count(setmealLqw);
+        long setmealCount = setmealService.count(setmealLqw);
 
         // 2.4 如果查询结果大于0，说明该分类已经关联套餐，抛出一个自定义的业务异常
         if (setmealCount > 0) {

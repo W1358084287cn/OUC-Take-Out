@@ -24,6 +24,7 @@ spring:
     redis:
       time-to-live: 3600000 # 设置缓存有效期为60min
   # 配置Druid数据库连接池（本地MySQL）
+  # noinspection SpringBootApplicationYaml
   datasource:
     druid:
       driver-class-name: com.mysql.cj.jdbc.Driver
@@ -47,3 +48,5 @@ mybatis-plus:
 # 文件保存路径
 reggie:
   path: D:\img\
+  # C端30天保持登录 Cookie 签名密钥（不少于32字符随机字符串）
+  remember-key: OUC-Take-Out-2026-Remember-Me-Secret-Key!!

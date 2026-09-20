@@ -6,11 +6,11 @@ import edu.ouc.dto.OrderDto;
 import edu.ouc.entity.Orders;
 
 /**
- * @Author: Sihang Xie
- * @Description: 订单服务层接口
- * @Date: 2022/10/27 10:29
- * @Version: 0.0.1
- * @Modified By:
+ * Author: Sihang Xie
+ * Description: 订单服务层接口
+ * Date: 2022/10/27 10:29
+ * Version: 0.0.1
+ * Modified By:
  */
 public interface IOrderService extends IService<Orders> {
 

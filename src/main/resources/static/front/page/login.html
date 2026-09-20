@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -39,6 +39,9 @@
 
     </div>
     <div class="divMsg" v-if="msgFlag">邮箱输入不正确，请重新输入</div>
+    <div class="divRemember">
+        <el-checkbox v-model="rememberMe">30天内保持登录</el-checkbox>
+    </div>
     <el-button type="primary"
                :class="{btnSubmit:1===1,btnNoPhone:!form.code||!form.email,btnPhone:form.code&&form.email}"
                @click="btnLogin">
@@ -68,6 +71,7 @@
                     email: '',
                     code: ''
                 },
+                rememberMe: false,
                 msgFlag: false,
                 loading: false
             }
@@ -86,7 +90,7 @@
                 if (regex.test(this.form.email)) {
                     this.msgFlag = false
                     // this.form.code = (Math.random() * 1000000).toFixed(0)
-                    const res = sendMsgApi({email: this.form.email})    // 向后端发送用户的邮箱，让后端给用户发送验证码邮件
+                    sendMsgApi({email: this.form.email})    // 向后端发送用户的邮箱，让后端给用户发送验证码邮件
                     this.$notify({type: 'success', message: '验证码发送成功'})
 
                     if (!this.timer) {
@@ -109,7 +113,8 @@
             async btnLogin() {
                 if (this.form.email && this.form.code) {
                     this.loading = true
-                    const res = await loginApi(this.form)
+                    const loginData = { ...this.form, rememberMe: this.rememberMe }
+                    const res = await loginApi(loginData)
                     this.loading = false
                     if (res.code === 1) {
                         localStorage.setItem('userInfo', JSON.stringify(res.data)) // 存储后端返回的用户对象
