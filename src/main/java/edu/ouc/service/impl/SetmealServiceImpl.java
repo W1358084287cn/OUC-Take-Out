@@ -14,6 +14,7 @@ import edu.ouc.service.IDishService;
 import edu.ouc.service.ISetmealDishService;
 import edu.ouc.service.ISetmealService;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -234,6 +235,23 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
         lqw.in(SetmealDish::getSetmealId, ids);
         // 3.3删除setmeal_dish表中所有的套餐关联菜品
         return setmealDishService.remove(lqw);
+    }
+
+    // 根据条件查询套餐集合，支持按名称模糊搜索
+    @Override
+    public List<Setmeal> listWithName(Setmeal setmeal, String name) {
+        // 1.创建过滤条件封装器
+        LambdaQueryWrapper<Setmeal> lqw = new LambdaQueryWrapper<>();
+        // 2.添加过滤条件：根据分类ID查询套餐
+        lqw.eq(setmeal.getCategoryId() != null, Setmeal::getCategoryId, setmeal.getCategoryId());
+        // 3.添加过滤条件：按套餐名称模糊搜索
+        lqw.like(Strings.isNotEmpty(name), Setmeal::getName, name);
+        // 4.添加过滤条件：只查询启售的套餐
+        lqw.eq(Setmeal::getStatus, 1);
+        // 5.添加排序条件：根据修改时间降序排列
+        lqw.orderByDesc(Setmeal::getUpdateTime);
+        // 6.调用数据层的查询方法
+        return this.list(lqw);
     }
 
     // 根据菜品IDs集合，查询对应套餐Ids集合

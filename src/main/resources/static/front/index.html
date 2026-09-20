@@ -39,9 +39,24 @@
         <div class="divDesc">
             简介: 听海餐厅是中国海洋大学西海岸校区的学生餐厅，定位“大众化的美食外送餐饮”，旨为海大学生打造美食。
         </div>
+        <div class="divSearch">
+            <van-search
+                v-model="searchKeyword"
+                placeholder="搜索菜品/套餐"
+                @search="onSearch"
+                @clear="onSearchClear"
+                show-action
+                shape="round"
+                background="#ffffff"
+            >
+                <template #action>
+                    <div @click="onSearch" style="color:#1989fa;font-size:14px;">搜索</div>
+                </template>
+            </van-search>
+        </div>
     </div>
     <div class="divBody">
-        <div class="divType">
+        <div class="divType" v-show="!isSearching">
             <ul>
                 <li v-for="(item,index) in categoryList" :key="index" @click="categoryClick(index,item.id,item.type)"
                     :class="{active:activeType === index}">{{item.name}}
@@ -50,6 +65,7 @@
         </div>
         <div class="divMenu">
             <div>
+                <div v-if="isSearching && dishList.length === 0" class="divNoResult">暂无相关菜品或套餐</div>
                 <div class="divItem" v-for="(item,index) in dishList" :key="index" @click="dishDetails(item)">
                     <el-image :src="imgPathConvert(item.image)">
                         <div slot="error" class="image-slot">
@@ -271,6 +287,9 @@
                     show: false,
                     item: {}
                 },
+                searchKeyword: '',
+                isSearching: false,
+                searchTimer: null,
             }
         },
         computed: {
@@ -302,6 +321,18 @@
                 } else {
                     document.querySelector('.divCart').style.zIndex = 3000
                 }
+            },
+            searchKeyword(val) {
+                clearTimeout(this.searchTimer);
+                if (!val || !val.trim()) {
+                    if (this.isSearching) {
+                        this.onSearchClear();
+                    }
+                    return;
+                }
+                this.searchTimer = setTimeout(() => {
+                    this.onSearch();
+                }, 300);
             },
         },
         mounted() {
@@ -387,6 +418,58 @@
                     this.dishList = dishList
                 } else {
                     this.$notify({type: 'warning', message: res.msg});
+                }
+            },
+            //执行搜索
+            async onSearch() {
+                clearTimeout(this.searchTimer);
+                if (!this.searchKeyword.trim()) {
+                    return;
+                }
+                this.isSearching = true;
+                const keyword = this.searchKeyword.trim();
+                const [dishRes, setmealRes] = await Promise.all([
+                    dishListApi({name: keyword, status: 1}),
+                    setmealListApi({name: keyword, status: 1})
+                ]);
+                let results = [];
+                if (dishRes.code === 1 && dishRes.data.length > 0) {
+                    const cartData = this.cartData;
+                    dishRes.data.forEach(dish => {
+                        dish.itemType = 'dish';
+                        if (cartData.length > 0) {
+                            cartData.forEach(cart => {
+                                if (dish.id === cart.dishId) {
+                                    dish.number = cart.number;
+                                }
+                            });
+                        }
+                    });
+                    results.push(...dishRes.data);
+                }
+                if (setmealRes.code === 1 && setmealRes.data.length > 0) {
+                    const cartData = this.cartData;
+                    setmealRes.data.forEach(item => {
+                        item.itemType = 'setmeal';
+                        if (cartData.length > 0) {
+                            cartData.forEach(cart => {
+                                if (item.id === cart.setmealId) {
+                                    item.number = cart.number;
+                                }
+                            });
+                        }
+                    });
+                    results.push(...setmealRes.data);
+                }
+                this.dishList = results;
+            },
+            //清空搜索，恢复分类浏览
+            onSearchClear() {
+                clearTimeout(this.searchTimer);
+                this.isSearching = false;
+                this.searchKeyword = '';
+                if (this.categoryList.length > 0) {
+                    this.categoryClick(0, this.categoryList[0].id, this.categoryList[0].type);
                 }
             },
             //获取购物车数据

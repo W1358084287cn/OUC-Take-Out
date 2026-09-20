@@ -7,6 +7,7 @@ import edu.ouc.entity.Setmeal;
 import edu.ouc.service.ISetmealService;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.web.bind.annotation.*;
 
@@ -78,9 +79,12 @@ public class SetmealController {
         return R.error("删除失败");
     }
 
-    // 根据条件查询套餐集合
+    // 根据条件查询套餐集合，支持按名称模糊搜索
     @GetMapping("/list")
-    public R<List<Setmeal>> list(Setmeal setmeal) {
+    public R<List<Setmeal>> list(Setmeal setmeal, String name) {
+        if (Strings.isNotEmpty(name)) {
+            return R.success(setmealService.listWithName(setmeal, name));
+        }
         return R.success(setmealService.list(setmeal));
     }
 }

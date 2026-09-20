@@ -276,17 +276,18 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
         return dishFlavorService.remove(dishFlavorLqw);
     }
 
-    // 根据指定过滤条件查询菜品
+    // 根据指定过滤条件查询菜品，支持按名称模糊搜索
     @Override
-    @Cacheable(value = "DishCache", key = "#dish.categoryId + '-' + #dish.status")
-    public List<DishDto> listWithFlavor(Dish dish) {
+    public List<DishDto> listWithFlavor(Dish dish, String name) {
         // 1.创建条件过滤器
         LambdaQueryWrapper<Dish> lqw = new LambdaQueryWrapper<>();
         // 2.添加过滤条件：根据分类ID查询菜品
         lqw.eq(dish.getCategoryId() != null, Dish::getCategoryId, dish.getCategoryId());
-        // 3.添加排序条件：根据sort字段升序排列菜品，再根据最后修改时间降序排列
+        // 3.添加过滤条件：按菜品名称模糊搜索
+        lqw.like(Strings.isNotEmpty(name), Dish::getName, name);
+        // 4.添加排序条件：根据sort字段升序排列菜品，再根据最后修改时间降序排列
         lqw.orderByAsc(Dish::getSort).orderByDesc(Dish::getUpdateTime);
-        // 4.条件过滤条件：只查询启售的菜品
+        // 5.条件过滤条件：只查询启售的菜品
         lqw.eq(Dish::getStatus, 1);
         // 5.调用数据层的查询方法
         List<Dish> dishes = this.list(lqw);

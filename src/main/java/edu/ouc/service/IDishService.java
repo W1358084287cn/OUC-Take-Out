@@ -34,6 +34,6 @@ public interface IDishService extends IService<Dish> {
     // 删除(批量删除)菜品
     Boolean removeWithFlavor(List<Long> ids);
 
-    // 根据指定过滤条件查询菜品
-    List<DishDto> listWithFlavor(Dish dish);
+    // 根据指定过滤条件查询菜品，支持按名称模糊搜索
+    List<DishDto> listWithFlavor(Dish dish, String name);
 }

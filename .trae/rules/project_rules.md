@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿# 项目规则索引（README.md 全量抽取）
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 项目规则索引（README.md 全量抽取）
 
 ## GATE RULE（最高优先级总规则）
 **【最高优先级 · 守门总规则】**
@@ -8,7 +8,7 @@
 4. 改动代码之后，输出检查清单：列出本次改动用到哪个锚点、核对对应的子规则是否全部遵守。
 5. 如果需求和project_rules.md内规则冲突，以本规则文件为准，不允许擅自修改规则文件，如需改规则，必须先询问我。
 6. 不要主动优化重构现有代码，除非我明确提出重构指令；只做我指定的任务。
-
+7，一切按照高聚合低耦合实现，使用容器控制反转来解耦组件之间的依赖关系。
 ---
 
 ## 索引目录
@@ -149,6 +149,15 @@
 - 分类列表：GET /category/list，lqw.eq(Category::getType, 1) 查菜品分类，orderByAsc(sort) -> orderByDesc(updateTime)，返回 List<Category>
 - 菜品/套餐按分类展示：GET /dish/list（按 categoryId 过滤，lqw.eq(Dish::getStatus, 1) 只查启售）+ GET /setmeal/list（按 categoryId 过滤，lqw.eq(Setmeal::getStatus, 1)）
 - 口味查询：菜品展示时需根据 dishId 查 dish_flavor 表展示口味
+
+### C端菜品搜索
+- 搜索入口：点餐页 index.html 顶部新增 van-search 搜索框，支持输入关键词搜索菜品和套餐
+- 后端搜索接口：复用 GET /dish/list 和 GET /setmeal/list，新增可选参数 name（String），传 name 时按名称模糊匹配（lqw.like(Strings.isNotEmpty(name), Dish::getName, name)），不传 name 时保持原有按分类过滤行为
+- 套餐搜索：GET /setmeal/list 新增 name 参数，Service 层手写 lqw.like(Strings.isNotEmpty(name), Setmeal::getName, name)，只查启售套餐（status=1）
+- 搜索结果合并：前端同时调用菜品和套餐搜索接口，Promise.all 并行请求，合并结果统一渲染，套餐条目标记 itemType='setmeal' 用于区分点击行为（菜品走口味弹窗/套餐走套餐详情弹窗）
+- 搜索清空恢复：点击搜索框清除按钮或清空关键词后，恢复分类浏览模式，重新加载当前分类数据
+- 搜索模式标记：Vue data 中 isSearching 布尔值标记当前是否处于搜索模式，用于控制 UI 渲染逻辑
+- 前端样式：搜索框宽度与页面主体一致（345rem），圆角搜索框（shape="round"），白色背景，位于分类列表和菜品列表上方
 
 ### 购物车
 - 数据模型：shopping_cart 表，userId/dishId/setmealId/name/image/dishFlavor/number/amount

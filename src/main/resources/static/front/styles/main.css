@@ -10,6 +10,7 @@
     background-repeat: no-repeat;
     height: 152rem;
     background-size: contain;
+    position: relative;
 }
 
 #main .divHead img {
@@ -22,17 +23,15 @@
 
 #main .divTitle {
     width: 345rem;
-    height: 118rem;
+    margin: -75rem auto 0;
     opacity: 1;
     background: #ffffff;
     border-radius: 6rem;
     box-shadow: 0rem 2rem 5rem 0rem rgba(69, 69, 69, 0.1);
-    position: absolute;
-    left: 50%;
-    top: 77rem;
-    transform: translate(-50%, 0);
+    position: relative;
+    z-index: 10;
     box-sizing: border-box;
-    padding: 14rem 0 0 8rem;
+    padding: 14rem 8rem 10rem 8rem;
 }
 
 #main .divTitle .divStatic {
@@ -98,6 +97,18 @@
     border-top: 1rem dashed #ebebeb;
 }
 
+#main .divSearch {
+    margin-top: 8rem;
+}
+
+#main .divSearch .van-search {
+    padding: 4rem 0;
+}
+
+#main .divSearch .van-field__control {
+    font-size: 14rem !important;
+}
+
 #main .divBody {
     display: flex;
     height: 100%;
@@ -108,9 +119,9 @@
 }
 
 #main .divBody .divType ul {
-    margin-top: 61rem;
+    margin-top: 0;
     overflow-y: auto;
-    height: calc(100% - 61rem);
+    height: 100%;
     padding-bottom: 200rem;
     box-sizing: border-box;
     width: 84rem;
@@ -145,10 +156,17 @@
     height: 100%;
 }
 
+#main .divBody .divMenu .divNoResult {
+    text-align: center;
+    color: #969799;
+    font-size: 14rem;
+    padding-top: 80rem;
+}
+
 #main .divBody .divMenu > div {
-    margin-top: 61rem;
+    margin-top: 0;
     overflow-y: auto;
-    height: calc(100% - 61rem);
+    height: 100%;
     padding-bottom: 200rem;
     box-sizing: border-box;
 }

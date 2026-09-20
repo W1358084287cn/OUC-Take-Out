@@ -74,9 +74,9 @@ public class DishController {
         return R.error("删除失败");
     }
 
-    // 根据指定过滤条件查询菜品
+    // 根据指定过滤条件查询菜品，支持按名称模糊搜索
     @GetMapping("/list")
-    public R<List<DishDto>> listByCategoryId(Dish dish) {
-        return R.success(dishService.listWithFlavor(dish));
+    public R<List<DishDto>> listByCategoryId(Dish dish, String name) {
+        return R.success(dishService.listWithFlavor(dish, name));
     }
 }

@@ -40,4 +40,7 @@ public interface ISetmealService extends IService<Setmeal> {
 
     // 根据条件查询套餐集合
     List<Setmeal> list(Setmeal setmeal);
+
+    // 根据条件查询套餐集合，支持按名称模糊搜索
+    List<Setmeal> listWithName(Setmeal setmeal, String name);
 }
