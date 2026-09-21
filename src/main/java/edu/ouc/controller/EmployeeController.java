@@ -118,7 +118,7 @@ public class EmployeeController {
         if (empService.updateById(employee)) {
 
             // 查看当前线程的ID
-            long id = Thread.currentThread().threadId();
+            long id = Thread.currentThread().getId();
             log.info("线程ID为：{}", id);
 
             return R.success("修改成功");
