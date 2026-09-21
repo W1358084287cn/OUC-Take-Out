@@ -2,8 +2,10 @@ package edu.ouc.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import edu.ouc.common.R;
+import edu.ouc.common.RefundContext;
 import edu.ouc.dto.OrderDto;
 import edu.ouc.entity.Orders;
+import edu.ouc.entity.RefundRequest;
 import edu.ouc.service.impl.OrderServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class OrderController {
     private final OrderServiceImpl orderService;
+    private final RefundContext refundContext;
 
     @Value("${reggie.order-retention-days:90}")
     private int retentionDays;
@@ -33,7 +36,7 @@ public class OrderController {
     // 提交(添加)订单，返回订单对象(含订单号、金额)
     @PostMapping("/submit")
     public R<Orders> submit(@RequestBody Orders orders) {
-        log.info("下单请求: addressBookId={}, payMethod={}, remark={}", orders.getAddressBookId(), orders.getPayMethod(), orders.getRemark());
+        log.info("下单请求: tableNo={}, payMethod={}, remark={}", orders.getTableNo(), orders.getPayMethod(), orders.getRemark());
         Orders order = orderService.submit(orders);
         if (order != null) {
             return R.success(order);
@@ -143,5 +146,53 @@ public class OrderController {
     @GetMapping("/retention-days")
     public R<Integer> getRetentionDays() {
         return R.success(retentionDays);
+    }
+
+    // 客户发起退款申请
+    @PostMapping("/requestRefund")
+    public R<RefundRequest> requestRefund(@RequestBody RefundRequest refundRequest) {
+        log.info("客户发起退款: orderId={}, amount={}", refundRequest.getOrderId(), refundRequest.getRefundAmount());
+        RefundRequest result = orderService.requestRefund(refundRequest);
+        return R.success(result);
+    }
+
+    // 客户查询退款进度
+    @GetMapping("/refundStatus/{orderId}")
+    public R<RefundRequest> getRefundStatus(@PathVariable Long orderId) {
+        log.info("查询退款进度: orderId={}", orderId);
+        RefundRequest refund = orderService.getRefundStatus(orderId);
+        return R.success(refund);
+    }
+
+    // 商家查看退款申请列表
+    @GetMapping("/refundRequests")
+    public R<List<RefundRequest>> getRefundRequests() {
+        log.info("商家查看退款申请列表");
+        List<RefundRequest> list = orderService.getRefundRequests();
+        return R.success(list);
+    }
+
+    // 商家处理退款（同意/拒绝/部分退款）
+    @PostMapping("/handleRefund")
+    public R<RefundRequest> handleRefund(@RequestBody RefundRequest refundRequest) {
+        log.info("商家处理退款: refundId={}, status={}", refundRequest.getRefundId(), refundRequest.getStatus());
+        RefundRequest result = orderService.handleRefund(refundRequest);
+        return R.success(result);
+    }
+
+    // 获取未读退款数量（用于红点展示）
+    @GetMapping("/refundUnreadCount")
+    public R<Integer> getRefundUnreadCount() {
+        int count = refundContext.getUnreadCount();
+        log.info("未读退款数: {}", count);
+        return R.success(count);
+    }
+
+    // 标记所有退款为已读（打开弹窗后调用）
+    @PostMapping("/markRefundViewed")
+    public R<String> markRefundViewed() {
+        refundContext.markAllViewed();
+        log.info("退款已标记为已读");
+        return R.success("已标记");
     }
 }

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 项目规则索引（README.md 全量抽取）
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 项目规则索引（README.md 全量抽取）
 
 ## GATE RULE（最高优先级总规则）
 **【最高优先级 · 守门总规则】**
@@ -193,6 +193,32 @@
 - 静态资源子目录：api/、js/、page/、styles/、plugins/、images/、fonts/
 - 配置文件：src/main/resources/application.yml
 
+### 退款系统——客户发起退款申请
+- 订单状态码扩展 / RefundRequest 内存数据模型 / RefundContext 内存上下文 / 客户发起退款 POST /order/requestRefund / 商家处理 POST /order/handleRefund / 部分退款
+
+### 退款系统——前端改造
+- C端 order.html 退款按钮 / 退款申请弹窗 / 商家后台退款审核 / 退款处理弹窗
+
+### 退款语音通知
+- 音频文件：static/backend/audio/您有新的退款，_br....mp3（预加载，新退款时播放）
+- 商家后台轮询：order/list.html 每 30 秒调用 GET /order/refundUnreadCount 检查未读数
+- 未读红点：el-badge 脉冲动画，打开退款审核弹窗后调用 POST /order/markRefundViewed 清除
+- 已读数存储：RefundContext.viewedRefundIds（ConcurrentHashMap.newKeySet()）纯内存
+- 未读数 API：GET /order/refundUnreadCount → RefundContext.getUnreadCount()
+- 已读标记 API：POST /order/markRefundViewed → RefundContext.markAllViewed()
+
+### 收银台系统
+- 内存数据模型：CashRegisterDay（date / totalAmount / refundAmount / netAmount / orderCount）纯内存存储，不建表
+- 内存上下文：CashRegisterContext（@Component 单例），ConcurrentSkipListMap<LocalDate, CashRegisterDay> history
+- 配置类：CashRegisterConfig（@ConfigurationProperties prefix=cash-register），refreshHour 刷新小时 / retentionDays 保留天数（1-3650，最高10年）
+- 刷新逻辑：cashRegisterContext.addIncome(amount) 和 addRefund(amount) 内部调用 checkAndRefresh()，每日凌晨 resetHour 点后首次访问时自动将今日记录存入 history，新建空白今日记录
+- 定时兜底：@Scheduled(fixedDelay=60000) 每分钟检查跨天刷新 + @Scheduled(cron="0 5 0 * * ?") 每天凌晨清理过期历史
+- 订单联动：OrderServiceImpl.update() 中 status==3 时调用 cashRegisterContext.addIncome()；handleRefund() 中同意(status=1)/部分退款(status=3)时调用 cashRegisterContext.addRefund()
+- 收银台 API：GET /cashier/today（今日概览）/ GET /cashier/history?page&pageSize（历史分页）/ GET /cashier/config（查看配置）/ PUT /cashier/config（更新配置，校验 resetHour 0-23，retentionDays 1-3650）
+- 收银台页面：frontend/backend/page/cashier/index.html，含今日统计卡片 / 历史记录表格（分页）/ 设置弹窗（刷新时间下拉 + 保留天数数字输入，最高3650天）
+- 前端 API：backend/api/cashRegister.js，含 getCashierTodayApi / getCashierHistoryApi / getCashierConfigApi / updateCashierConfigApi
+- 配置项 application.yml：cash-register.reset-hour=4 / cash-register.retention-days=90
+
 ### C端30天保持登录（记住我）
 - 技术方案：Cookie 签名 Token（自包含验证），零数据库改动，无需写表/改表/增字段
 - Token 格式：Base64( userIdInHex + ":" + expiryTimestamp + ":" + HMAC-SHA256(userIdInHex:expiry, secret) )，userId 按十六进制编码避免 Base64 中出现特殊字符
@@ -204,6 +230,54 @@
 - 前端登录 UI：login.html 追加"30天内保持登录"复选框，默认不勾选，勾选时 loginApi 多传 rememberMe: true
 - 前端退出登录：loginoutApi 正常调用 /user/loginout，后端清 Cookie
 - 安全性：HttpOnly Cookie 防 XSS 窃取、HMAC 签名防篡改、内置过期时间服务端二次校验、用户 status=0 禁用即时失效、退出登录即时清除
+
+### 退款系统——客户发起退款申请
+- 订单状态码扩展：1=待付款、2=制作中、3=已完成、5=已取消、6=已退款、**7=退款申请中、8=部分退款（已处理）**
+- 退款数据模型 RefundRequest（内存存储，不建数据库表）：refundId(雪花ID) / orderId / userId / refundAmount(申请金额) / refundReason / status(0=待审核/1=已同意/2=已拒绝/3=部分退款) / actualRefund(实际退款金额) / merchantReply(商家回复) / createTime / updateTime
+- 退款内存上下文 RefundContext：@Component 单例，ConcurrentHashMap<Long, RefundRequest> refundStore + ConcurrentHashMap<Long, Long> orderRefundIndex 按订单ID快速索引
+- 客户发起退款：POST /order/requestRefund，@RequestBody RefundRequest（含 orderId + refundAmount + refundReason），校验：1.订单必须存在且属于当前用户 2.订单状态只能是 2(制作中)或 3(已完成) 3.退款金额不能超过订单金额 4.同一订单不能重复申请 → 生成 refundId → 存入 RefundContext → 更新订单 status 为 7 → 返回 R.success("退款申请已提交")
+- 客户查询退款进度：GET /order/refundStatus/{orderId}，按 orderId 查 orderRefundIndex 获取 refundId → 返回 RefundRequest
+- 商家查看退款申请列表：GET /order/refundRequests，从 RefundContext 查所有 status=0 的记录，返回 List<RefundRequest>
+- 商家处理退款：POST /order/handleRefund，@RequestBody RefundRequest（含 refundId + status + actualRefund + merchantReply），三种处理：1.同意（status→1，更新订单 status 为 6 已退款）2.拒绝（status→2，订单 status 恢复为原状态 2 或 3）3.部分退款（status→3，actualRefund 必填，订单 status→8）→ 更新 RefundContext 中的 RefundRequest
+- 恢复已估清菜品：同意退款或部分退款时，遍历 orderDetail 中的 dishId，若菜品 status==2（已估清）则恢复为 status==1（启售）
+- 异常处理：订单不存在抛 CustomException("订单不存在")、订单状态不允许退款抛 CustomException("当前订单状态不可退款")、退款金额超过订单金额抛 CustomException("退款金额不能超过订单金额")、重复申请抛 CustomException("该订单已有退款申请在处理中")
+
+### 退款系统——前端改造
+- C 端 order.html 按钮区改造：status==2（制作中）时新增「申请退款」按钮（与「加餐」并列）；status==7（退款申请中）时显示「退款审核中...」不可点击按钮；status==8（部分退款已处理）时显示结果摘要
+- 退款申请弹窗：Vant Dialog 弹出，含退款金额（默认全额，可修改 ≤ 原金额）、退款原因（textarea 必填）、确认提交按钮
+- 前端 API（order.js 新增）：requestRefundApi(data) → POST /order/requestRefund、getRefundStatusApi(orderId) → GET /order/refundStatus/{orderId}
+- 商家后台 order/list.html：工具栏新增「退款审核」按钮（el-button type="warning"），点击筛选 status==7 的订单；status==7 的订单操作列显示「处理退款」按钮（el-button type="primary"）；点击弹出 el-dialog 处理弹窗，含退款金额输入、同意/拒绝/部分退款单选、商家回复 textarea
+- 商家后台 API（backend/api/order.js 新增）：getRefundRequestsApi() → GET /order/refundRequests、handleRefundApi(data) → POST /order/handleRefund
+
+### 即时通讯——TCP/WebSocket 服务端
+- 技术选型：Netty 内嵌 TCP Server（port 9090）+ WebSocket 协议升级，浏览器通过 ws://localhost:9090/chat 连接，本质是 TCP 长连接
+- pom.xml 新增依赖：netty-all（版本与 Spring Boot 内置 netty 版本保持一致）
+- 包结构：edu.ouc.chat.server（ChatServer / ChatServerInitializer / ChatMessageHandler）+ edu.ouc.chat.model（ChatMessage / ChatSession / ChatConversation）+ edu.ouc.chat.context（ChatSessionContext）
+- ChatServer：@Component，@PostConstruct 启动 Netty（new Thread 避免阻塞 Spring 主线程），bossGroup(1) + workerGroup(N) + ServerBootstrap + NioServerSocketChannel，绑定 port 9090，@PreDestroy 优雅关闭 EventLoopGroup
+- ChatServerInitializer：extends ChannelInitializer<SocketChannel>，Pipeline 顺序：HttpServerCodec → ChunkedWriteHandler → HttpObjectAggregator(65536) → WebSocketServerProtocolHandler("/chat") → ChatMessageHandler
+- ChatMessageHandler：extends SimpleChannelInboundHandler<TextWebSocketFrame>，channelRead0() 解析 JSON → ChatMessage，根据 senderRole 路由：CUSTOMER→推送给所有在线商家、MERCHANT→按 orderId 查到客户 userId 推送给客户
+- ChatSessionContext：@Component 单例，ConcurrentHashMap<String, ChatSession> sessions(channelId→session) + ConcurrentHashMap<Long, String> userChannelMap(userId→channelId，一个用户一个连接) + ConcurrentHashMap<String, LinkedList<ChatMessage>> conversationMessages(conversationId→消息列表) + ConcurrentHashMap<String, ChatConversation> activeConversations(conversationId→会话元信息，含未读数/最后消息/输入状态)
+- 生命周期：channelActive() 时暂存 Channel→channelId 映射不绑定用户；客户端发 LOGIN 消息（含 userId+role）后绑定到 userChannelMap；channelInactive() 时清理 sessions + userChannelMap + 广播离线通知
+- 消息类型枚举：CHAT(聊天消息) / TYPING(正在输入) / TYPING_STOP(停止输入) / SYSTEM(系统通知:上线/下线) / LOGIN(登录绑定) / CONVERSATION_LIST(推送会话列表更新)
+- 消息历史查询 HTTP 接口：GET /chat/history?orderId=xxx&userId=xxx，从 ChatSessionContext 查 conversationMessages，返回 List<ChatMessage>，最多 100 条
+- 配置项（application.yml 新增）：chat.port=9090、chat.path=/chat、chat.max-recent-messages=100
+
+### 即时通讯——多窗口聊天（客服模式）
+- 商家端布局：左侧会话列表 + 右侧聊天窗口，经典客服面板模式，每个客户+订单组合为独立会话窗口
+- 会话标识 conversationId = orderId + "_" + userId，按此键分会话存储消息和元数据
+- 会话列表排序：按 lastMessageTime 降序排列，最新消息的会话排最上面
+- 未读消息：商家当前未打开的会话收到新消息时 unreadCount++；商家切换到该会话时 unreadCount 清零；总未读数显示在消息中心入口红点
+- 消息路由规则：客户发消息 → 推送给所有在线商家（每个商家更新对应 conversationId 的消息列表 + 会话列表）；商家发消息 → 按 conversationId 解析出客户 userId → 推送给该客户（不广播给其他客户）
+- 会话列表更新推送：商家收到新消息时，服务端推送 CONVERSATION_LIST 类型消息，含所有会话的最新摘要信息（lastMessage + lastTime + unreadCount）
+- 聊天面板 chat-panel.html：独立 HTML 页面（backend/page/chat/chat-panel.html），可作为弹窗 iframe 嵌入 order/list.html 或独立打开；Vue 数据模型: conversations[] / activeConversationId / messages[] / inputText / customerTyping / totalUnread / wsConnection
+- 连接认证：WebSocket 连接建立后立即发送 LOGIN 消息 {"type":"LOGIN","userId":xxx,"role":"MERCHANT"}，服务端绑定会话；未认证的连接 10 秒内不发 LOGIN 则断开
+
+### 即时通讯——实时输入状态
+- 协议定义：TYPING 消息 {"type":"TYPING","senderId":xxx,"senderRole":"CUSTOMER/MERCHANT","orderId":xxx,"receiverId":xxx}；停止输入 TYPING_STOP 消息同理，只改 type 字段
+- 前端防抖逻辑：输入框 @input 事件触发 → 首次输入发 TYPING → 设 2 秒定时器 → 2 秒内无新输入则发 TYPING_STOP；每次输入重置定时器
+- 显示位置：客户侧聊天窗口底部（输入框上方）显示「商家正在输入...」；商家侧当前聊天窗口底部显示「客户正在输入...」；同时左侧会话列表中该客户条目显示「⏳ 正在输入...」动画标记
+- 输入状态超时保护：服务端在 ChatSession 中记录 lastTypingTime，若超过 5 秒未收到 TYPING_STOP 且无新 TYPING，服务端自动广播 TYPING_STOP 清理状态
+- 输入状态不能广播给无关方：客户 TYPING 只推送给商家、商家 TYPING 只推送给对应客户，不允许跨会话泄露
 
 ---
 

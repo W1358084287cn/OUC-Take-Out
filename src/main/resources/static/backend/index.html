@@ -69,6 +69,7 @@
                                 <i :class="iconfont" :class="sub.icon"></i>
                                 <span slot="title">{{sub.name}}</span>
                                 <el-badge :value="newOrderCount" :hidden="newOrderCount === 0" class="menu-badge" v-if="sub.id === '6'" />
+                                <el-badge :value="refundUnreadCount" :hidden="refundUnreadCount === 0" class="menu-badge" style="margin-left:4px;" v-if="sub.id === '6'" />
                             </el-menu-item
                             >
                         </el-submenu>
@@ -76,6 +77,7 @@
                             <i class="iconfont" :class="item.icon"></i>
                             <span slot="title">{{item.name}}</span>
                             <el-badge :value="newOrderCount" :hidden="newOrderCount === 0" class="menu-badge" v-if="item.id === '6'" />
+                            <el-badge :value="refundUnreadCount" :hidden="refundUnreadCount === 0" class="menu-badge" style="margin-left:4px;" v-if="item.id === '6'" />
                         </el-menu-item>
                     </div>
                 </el-menu>
@@ -188,7 +190,10 @@
                 pollTimer: null,
                 lastNewOrderCount: 0,
                 notificationAudio: null,
-                firstFetch: true
+                refundNotificationsAudio: null,
+                firstFetch: true,
+                refundUnreadCount: 0,
+                prevRefundCount: 0
             }
         },
         computed: {},
@@ -203,21 +208,16 @@
         beforeDestroy() {
             this.timer = null
             clearTimeout(this.timer)
-            if (this.pollTimer) {
-                clearInterval(this.pollTimer)
-                this.pollTimer = null
-            }
+            if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null }
+            if (this.refundTimer) { clearInterval(this.refundTimer); this.refundTimer = null }
         },
         mounted() {
             window.menuHandle = this.menuHandle
-            // 初始化通知音效
             this.notificationAudio = new Audio('/backend/audio/notification.mp3')
-            // 解决Chrome自动播放限制：首次用户交互时"解锁"音频
+            this.refundNotificationsAudio = new Audio('/backend/audio/您有新的退款，_br....mp3')
             const unlockAudio = () => {
-                this.notificationAudio.play().then(() => {
-                    this.notificationAudio.pause()
-                    this.notificationAudio.currentTime = 0
-                }).catch(() => {})
+                this.notificationAudio.play().then(() => { this.notificationAudio.pause(); this.notificationAudio.currentTime = 0 }).catch(() => {})
+                this.refundNotificationsAudio.play().then(() => { this.refundNotificationsAudio.pause(); this.refundNotificationsAudio.currentTime = 0 }).catch(() => {})
                 document.removeEventListener('click', unlockAudio)
             }
             document.addEventListener('click', unlockAudio)
@@ -231,12 +231,16 @@
                     }
                 })
             },
-            // 启动定时轮询，每10秒查询待处理订单数量
+            // 启动定时轮询，每10秒查询待处理订单数量，每5秒查询退款
             startPolling() {
                 this.fetchNewOrderCount()
+                this.fetchRefundUnreadCount()
                 this.pollTimer = setInterval(() => {
                     this.fetchNewOrderCount()
                 }, 10000)
+                this.refundTimer = setInterval(() => {
+                    this.fetchRefundUnreadCount()
+                }, 5000)
             },
             // 查询待处理订单数量
             fetchNewOrderCount() {
@@ -278,6 +282,37 @@
                     this.notificationAudio.play().catch(() => {})
                 }
             },
+            // 查询退款未读数
+            fetchRefundUnreadCount() {
+                $axios({
+                    url: '/order/refundUnreadCount',
+                    method: 'get'
+                }).then(res => {
+                    if (res.code === 1) {
+                        const count = res.data || 0
+                        if (count > this.prevRefundCount && count > 0) {
+                            this.alertNewRefund(count)
+                        }
+                        this.prevRefundCount = count
+                        this.refundUnreadCount = count
+                    }
+                }).catch(() => {})
+            },
+            // 新退款提醒：语音 + 横幅
+            alertNewRefund(count) {
+                this.$notify({
+                    title: '退款提醒',
+                    message: '您有 ' + count + ' 条退款申请待处理，请及时审核',
+                    type: 'warning',
+                    duration: 10000,
+                    position: 'top-right',
+                    onClick: () => { this.menuHandle(this.menuList.find(m => m.id === '6'), false) }
+                })
+                if (this.refundNotificationsAudio) {
+                    this.refundNotificationsAudio.currentTime = 0
+                    this.refundNotificationsAudio.play().catch(() => {})
+                }
+            },
             goBack() {
                 // window.location.href = 'javascript:history.go(-1)'
                 const menu = this.menuList.find(item => item.id === this.menuActived)
@@ -291,6 +326,13 @@
                 this.iframeUrl = item.url
                 this.headTitle = item.name
                 this.goBackFlag = goBackFlag
+                // 点击"订单明细"时标记退款已读，清红点
+                if (item.id === '6') {
+                    $axios({ url: '/order/markRefundViewed', method: 'post' }).then(() => {
+                        this.refundUnreadCount = 0
+                        this.prevRefundCount = 0
+                    }).catch(() => {})
+                }
                 this.closeLoading()
             },
             closeLoading() {

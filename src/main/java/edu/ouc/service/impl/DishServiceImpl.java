@@ -6,9 +6,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import edu.ouc.common.CustomException;
 import edu.ouc.dto.DishDto;
+import edu.ouc.entity.Category;
 import edu.ouc.entity.Dish;
 import edu.ouc.entity.DishFlavor;
 import edu.ouc.entity.Setmeal;
+import edu.ouc.kitchen.service.IKitchenSchedulerService;
 import edu.ouc.mapper.DishMapper;
 import edu.ouc.service.IDishService;
 import edu.ouc.service.ISetmealService;
@@ -47,12 +49,17 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
     // 自动注入StringRedisTemplate类对象
     private final StringRedisTemplate redisTemplate;
 
+    // 注入后厨调度服务（@Lazy 避免循环依赖）
+    private final IKitchenSchedulerService kitchenSchedulerService;
+
     public DishServiceImpl(DishFlavorServiceImpl dishFlavorService, @Lazy CategoryServiceImpl categoryService,
-                           ISetmealService setmealService, StringRedisTemplate redisTemplate) {
+                           ISetmealService setmealService, StringRedisTemplate redisTemplate,
+                           @Lazy IKitchenSchedulerService kitchenSchedulerService) {
         this.dishFlavorService = dishFlavorService;
         this.categoryService = categoryService;
         this.setmealService = setmealService;
         this.redisTemplate = redisTemplate;
+        this.kitchenSchedulerService = kitchenSchedulerService;
     }
 
 
@@ -109,7 +116,8 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
             // 7.2.1 获取每个Dish的分类id
             Long categoryId = dish.getCategoryId();
             // 7.2.2 根据分类ID查询分类表，最终获得分类名称
-            String categoryName = categoryService.getById(categoryId).getName();
+            Category category = categoryService.getById(categoryId);
+            String categoryName = category != null ? category.getName() : "未知分类";
             // 7.2.3 创建DishDto对象
             DishDto dishDto = new DishDto();
             // 7.2.4 先把Dish对象的所有属性拷贝到DishDto对象，然后再设置刚刚获得的分类名称
@@ -289,8 +297,8 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
         lqw.like(StringUtils.isNotEmpty(name), Dish::getName, name);
         // 4.添加排序条件：根据sort字段升序排列菜品，再根据最后修改时间降序排列
         lqw.orderByAsc(Dish::getSort).orderByDesc(Dish::getUpdateTime);
-        // 5.条件过滤条件：排除估清菜品（status=0停售、status=1启售、status=2估清均不显示）
-        lqw.eq(Dish::getStatus, 1);
+        // 5.过滤条件：只排除停售菜品（status=0停售），启售(1)和估清(2)均返回给C端展示
+        lqw.in(Dish::getStatus, 1, 2);
         // 5.调用数据层的查询方法
         List<Dish> dishes = this.list(lqw);
 
@@ -325,7 +333,12 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
             throw new CustomException("该菜品已经是估清状态");
         }
         dish.setStatus(2);
-        return this.updateById(dish);
+        boolean updated = this.updateById(dish);
+        if (updated) {
+            // 同步通知后厨调度：作废该菜品待加工队列中的任务
+            kitchenSchedulerService.markDishSoldOut(id, true);
+        }
+        return updated;
     }
 
     // 恢复启售
@@ -340,6 +353,11 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
             throw new CustomException("该菜品不是估清状态，无需恢复");
         }
         dish.setStatus(1);
-        return this.updateById(dish);
+        boolean updated = this.updateById(dish);
+        if (updated) {
+            // 同步通知后厨调度：恢复该菜品的正常供应
+            kitchenSchedulerService.markDishSoldOut(id, false);
+        }
+        return updated;
     }
 }

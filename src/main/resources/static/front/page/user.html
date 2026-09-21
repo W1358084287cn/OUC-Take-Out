@@ -32,12 +32,6 @@
     </div>
     <div class="divContent">
         <div class="divLinks">
-            <div class="item" @click="toAddressPage">
-                <img src="./../images/locations.png" alt="地址管理"/>
-                <span>地址管理</span>
-                <i class="el-icon-arrow-right"></i>
-            </div>
-            <div class="divSplit"></div>
             <div class="item" @click="toOrderPage">
                 <img src="./../images/orders.png" alt="历史订单"/>
                 <span>历史订单</span>
@@ -127,11 +121,6 @@
         methods: {
             goBack() {
                 history.go(-1)
-            },
-            toAddressPage() {
-                window.requestAnimationFrame(() => {
-                    window.location.href = '/front/page/address.html'
-                })
             },
             toOrderPage() {
                 window.requestAnimationFrame(() => {

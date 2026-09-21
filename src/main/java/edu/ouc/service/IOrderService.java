@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import edu.ouc.dto.OrderDto;
 import edu.ouc.entity.Orders;
+import edu.ouc.entity.RefundRequest;
 
 import java.util.List;
 
@@ -39,6 +40,18 @@ public interface IOrderService extends IService<Orders> {
 
     // 退款
     Boolean refund(Long orderId, String reason);
+
+    // 客户发起退款申请
+    RefundRequest requestRefund(RefundRequest request);
+
+    // 客户查询退款进度
+    RefundRequest getRefundStatus(Long orderId);
+
+    // 商家查看退款申请列表
+    List<RefundRequest> getRefundRequests();
+
+    // 商家处理退款（同意/拒绝/部分退款）
+    RefundRequest handleRefund(RefundRequest request);
 
     // 加餐(追加菜品)
     Boolean addItems(Long orderId);

@@ -68,7 +68,7 @@ public class DinnerTableContext {
     public List<DinnerTable> listByArea(String area) {
         List<DinnerTable> result = new ArrayList<>();
         for (DinnerTable table : tableMap.values()) {
-            if (table.getArea().equals(area)) {
+            if (area != null && area.equals(table.getArea())) {
                 result.add(table);
             }
         }

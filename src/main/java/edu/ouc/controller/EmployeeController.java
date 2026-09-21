@@ -4,10 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import edu.ouc.common.R;
 import edu.ouc.entity.Employee;
+import edu.ouc.filter.LoginCheckFilter;
 import edu.ouc.service.IEmployeeService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
@@ -29,6 +31,7 @@ public class EmployeeController {
 
     // 注入业务层
     private final IEmployeeService empService;
+    private final StringRedisTemplate stringRedisTemplate;
 
     // 后台员工登录方法
     @PostMapping("/login")
@@ -63,6 +66,8 @@ public class EmployeeController {
         }
         // 6.将员工ID存放在Session保存作用域中
         request.getSession().setAttribute("employee", emp.getId());
+        // 注册Redis在线会话：新登录自动踢掉该员工在其他浏览器的旧会话
+        LoginCheckFilter.trackOnlineSession(stringRedisTemplate, request.getSession().getId(), "employee", emp.getId());
         log.info("员工登录成功: id={}, username={}", emp.getId(), username);
         return R.success(emp);
     }
@@ -74,7 +79,11 @@ public class EmployeeController {
         log.info("员工退出登录: id={}", empId);
         // 1.清除Session保存作用域中保存的数据
         request.getSession().removeAttribute("employee");
-        // 2.返回结果
+        // 2.移除Redis在线会话记录
+        if (empId instanceof Long) {
+            LoginCheckFilter.removeOnlineSession(stringRedisTemplate, "employee", (Long) empId);
+        }
+        // 3.返回结果
         return R.success("退出成功");
     }
 

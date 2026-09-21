@@ -66,3 +66,36 @@ const getOrderRetentionDays = () => {
     method: 'get'
   })
 }
+
+// 获取退款申请列表（商家）
+const getRefundRequestsApi = () => {
+  return $axios({
+    url: '/order/refundRequests',
+    method: 'get'
+  })
+}
+
+// 处理退款申请（商家）
+const handleRefundApi = (data) => {
+  return $axios({
+    url: '/order/handleRefund',
+    method: 'post',
+    data
+  })
+}
+
+// 获取未读退款数量
+const getRefundUnreadCountApi = () => {
+  return $axios({
+    url: '/order/refundUnreadCount',
+    method: 'get'
+  })
+}
+
+// 标记所有退款为已读
+const markRefundViewedApi = () => {
+  return $axios({
+    url: '/order/markRefundViewed',
+    method: 'post'
+  })
+}

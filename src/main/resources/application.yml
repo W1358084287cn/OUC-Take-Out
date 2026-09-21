@@ -59,3 +59,10 @@ kitchen:
   slot-count: 4
   # 取消订单时是否强制终止加工中任务（默认false：继续做完）
   force-stop-on-cancel: false
+
+# 收银台配置
+cash-register:
+  # 每日刷新小时（0-23），默认凌晨4点
+  reset-hour: 4
+  # 历史记录保留天数（1-3650，最高10年），默认90天
+  retention-days: 90

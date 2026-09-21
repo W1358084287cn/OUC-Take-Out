@@ -29,7 +29,7 @@
         <img src="./../images/success.png" alt="支付成功"/>
         <div class="divSuccess">支付成功</div>
         <div class="divDesc">订单号：{{ orderNumber || '暂无订单号' }}</div>
-        <div class="divDesc">预计{{finishTime || '计算中'}}到达</div>
+        <div class="divDesc">预计{{finishTime || '计算中'}}取餐完成</div>
         <div class="divDesc1">后厨正在加紧制作中，请耐心等待~</div>
         <div class="btnView" @click="toOrderPage">查看订单</div>
     </div>
@@ -47,20 +47,26 @@
         data() {
             return {
                 finishTime: '',
-                orderNumber: ''
+                orderNumber: '',
+                tableId: '',
+                tableNo: ''
             }
         },
         computed: {},
         created() {
             this.getFinishTime()
-            this.initOrderNo()
+            this.initParams()
         },
         mounted() {
         },
         methods: {
             goBack() {
                 window.requestAnimationFrame(() => {
-                    window.location.replace('/front/index.html')
+                    if (this.tableId) {
+                        window.location.replace('/front/index.html?tableId=' + this.tableId + '&tableNo=' + this.tableNo)
+                    } else {
+                        window.location.replace('/front/index.html')
+                    }
                 })
             },
             toOrderPage() {
@@ -70,10 +76,14 @@
             },
             toMainPage() {
                 window.requestAnimationFrame(() => {
-                    window.location.replace('/front/index.html')
+                    if (this.tableId) {
+                        window.location.replace('/front/index.html?tableId=' + this.tableId + '&tableNo=' + this.tableNo)
+                    } else {
+                        window.location.replace('/front/index.html')
+                    }
                 })
             },
-            //获取送达时间
+            //获取取餐时间
             getFinishTime() {
                 let now = new Date()
                 let hour = now.getHours() + 1
@@ -86,10 +96,12 @@
                 }
                 this.finishTime = hour + ':' + minute
             },
-            //从URL参数获取订单号
-            initOrderNo() {
+            //从URL参数获取订单号及桌台信息
+            initParams() {
                 const params = new URLSearchParams(window.location.search)
                 this.orderNumber = params.get('orderNumber') || ''
+                this.tableId = params.get('tableId') || ''
+                this.tableNo = params.get('tableNo') || ''
             },
 
         }

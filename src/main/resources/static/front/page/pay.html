@@ -136,6 +136,8 @@
                 orderId: '',
                 orderNumber: '',
                 amount: '0.00',
+                tableId: '',
+                tableNo: '',
                 payMethod: 1,
                 // 银行卡信息
                 cardNo: '',
@@ -182,6 +184,8 @@
                 this.orderId = params.get('orderId') || ''
                 this.orderNumber = params.get('orderNumber') || ''
                 this.amount = params.get('amount') || '0.00'
+                this.tableId = params.get('tableId') || ''
+                this.tableNo = params.get('tableNo') || ''
             },
             switchMethod(method) {
                 this.payMethod = method
@@ -227,7 +231,11 @@
                 }
             },
             toSuccessPage() {
-                window.location.replace('/front/page/pay-success.html?orderNumber=' + this.orderNumber)
+                let url = '/front/page/pay-success.html?orderNumber=' + this.orderNumber
+                if (this.tableId) {
+                    url += '&tableId=' + this.tableId + '&tableNo=' + this.tableNo
+                }
+                window.location.replace(url)
             }
         }
     })

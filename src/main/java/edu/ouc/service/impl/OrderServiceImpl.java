@@ -5,10 +5,14 @@ import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import edu.ouc.common.BaseContext;
+import edu.ouc.common.CashRegisterContext;
 import edu.ouc.common.CustomException;
+import edu.ouc.common.RefundContext;
 import edu.ouc.dto.OrderDto;
 import edu.ouc.entity.*;
+import edu.ouc.kitchen.service.IKitchenOrderService;
 import edu.ouc.mapper.OrderMapper;
+import edu.ouc.service.IDishService;
 import edu.ouc.service.IOrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -35,15 +39,25 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
 
     private final OrderDetailServiceImpl orderDetailService;
     private final ShoppingCartServiceImpl shoppingCartService;
-    private final AddressBookServiceImpl addressBookService;
     private final UserServiceImpl userService;
+    private final IKitchenOrderService kitchenOrderService;
+    private final IDishService dishService;
+    private final RefundContext refundContext;
+    private final CashRegisterContext cashRegisterContext;
 
     public OrderServiceImpl(OrderDetailServiceImpl orderDetailService, ShoppingCartServiceImpl shoppingCartService,
-                            AddressBookServiceImpl addressBookService, UserServiceImpl userService) {
+                            UserServiceImpl userService,
+                            @org.springframework.context.annotation.Lazy IKitchenOrderService kitchenOrderService,
+                            @org.springframework.context.annotation.Lazy IDishService dishService,
+                            RefundContext refundContext,
+                            CashRegisterContext cashRegisterContext) {
         this.orderDetailService = orderDetailService;
         this.shoppingCartService = shoppingCartService;
-        this.addressBookService = addressBookService;
         this.userService = userService;
+        this.kitchenOrderService = kitchenOrderService;
+        this.dishService = dishService;
+        this.refundContext = refundContext;
+        this.cashRegisterContext = cashRegisterContext;
     }
 
     // 提交(添加)订单，返回订单对象(含订单号)
@@ -65,12 +79,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         }
 
 
-        // 3.调用地址簿AddressBook业务层获取当前下单的地址信息
-        AddressBook addressBook = addressBookService.getById(orders.getAddressBookId());
-        // 如果地址信息为空，则抛出业务异常
-        if (addressBook == null) {
-            throw new CustomException("地址信息为空，无法下单");
-        }
+        // 3.判断是否为桌台点餐模式
+        boolean isTableMode = StringUtils.isNotEmpty(orders.getTableNo());
 
 
         // 4.调用用户业务层user表获取用户信息
@@ -111,17 +121,15 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         orders.setStatus(1);
         // 设置商品总金额
         orders.setAmount(amount.get());
-        // 设置订单客户手机号
-        orders.setPhone(addressBook.getPhone());
-        // 设置收货人姓名
-        orders.setConsignee(addressBook.getConsignee());
-        // 设置用户名
+        // 设置订单客户联系方式（堂食用桌号，带走用用户邮箱，截断防超长）
+        String contact = isTableMode ? ("T" + orders.getTableNo()) : user.getEmail();
+        orders.setPhone(contact.length() > 20 ? contact.substring(0, 20) : contact);
+        // 设置收货人（堂食用桌号，带走用用户名）
+        orders.setConsignee(isTableMode ? ("桌号" + orders.getTableNo()) : user.getName());
+        // 设置下单用户名
         orders.setUserName(user.getName());
-        // 设置地址详情，包含省市区
-        orders.setAddress((addressBook.getProvinceName() == null ? "" : addressBook.getProvinceName())
-                + (addressBook.getCityName() == null ? "" : addressBook.getCityName())
-                + (addressBook.getDistrictName() == null ? "" : addressBook.getDistrictName())
-                + addressBook.getDetail());
+        // 设置地址详情（堂食用桌号，带走显示自取）
+        orders.setAddress(isTableMode ? ("桌号" + orders.getTableNo()) : "自取");
 
         // 7.调用订单数据层新增订单
         this.save(orders);
@@ -161,7 +169,14 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         order.setPayMethod(payMethod);
         order.setCheckoutTime(LocalDateTime.now());
         // 4.执行更新
-        return this.updateById(order);
+        boolean result = this.updateById(order);
+
+        // 联动收银台：支付成功即记收入
+        if (result && order.getAmount() != null) {
+            cashRegisterContext.addIncome(order.getAmount());
+            log.info("收银台联动：支付成功记收入, orderId={}, amount={}", orderId, order.getAmount());
+        }
+        return result;
     }
 
     // 获取订单分页展示
@@ -288,6 +303,42 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         // 更新订单状态为已退款
         order.setStatus(6);
         boolean updated = this.updateById(order);
+
+        // 退款联动0：收银台记录退款金额（仅制作中的订单已记收入，需扣减）
+        if (status == 2 && order.getAmount() != null) {
+            cashRegisterContext.addRefund(order.getAmount());
+            log.info("收银台联动：退款扣减收入, orderId={}, amount={}", orderId, order.getAmount());
+        }
+
+        // 退款联动1：清理后厨任务（安全调用，未注册后厨的订单不会抛异常）
+        try {
+            kitchenOrderService.cancelOrder(orderId, true);
+        } catch (Exception e) {
+            log.warn("退款清理后厨任务失败（可能订单未注册后厨）: orderId={}, error={}", orderId, e.getMessage());
+        }
+
+        // 退款联动2：恢复订单中已估清的菜品
+        try {
+            LambdaQueryWrapper<OrderDetail> detailLqw = new LambdaQueryWrapper<>();
+            detailLqw.eq(OrderDetail::getOrderId, orderId);
+            List<OrderDetail> details = orderDetailService.list(detailLqw);
+            if (details != null && !details.isEmpty()) {
+                for (OrderDetail detail : details) {
+                    Long dishId = detail.getDishId();
+                    if (dishId != null) {
+                        Dish dish = dishService.getById(dishId);
+                        if (dish != null && dish.getStatus() == 2) {
+                            dish.setStatus(1);
+                            dishService.updateById(dish);
+                            log.info("退款恢复估清菜品: dishId={}, dishName={}", dishId, dish.getName());
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("退款恢复估清菜品失败: orderId={}, error={}", orderId, e.getMessage());
+        }
+
         log.info("订单退款成功: orderId={}, orderNumber={}, reason={}", orderId, order.getNumber(), reason);
         return updated;
     }
@@ -337,6 +388,29 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         this.updateById(order);
         // 清空购物车
         shoppingCartService.remove(cartLqw);
+
+        // 加餐联动：将新菜品加入后厨加工队列
+        try {
+            List<IKitchenOrderService.DishInfo> dishInfos = cartItems.stream()
+                    .filter(item -> item.getDishId() != null)
+                    .map(item -> {
+                        Integer duration = 15; // 默认烹饪耗时（分钟）
+                        Dish dish = dishService.getById(item.getDishId());
+                        if (dish != null) {
+                            return new IKitchenOrderService.DishInfo(
+                                    item.getDishId(), dish.getName(), duration);
+                        }
+                        return new IKitchenOrderService.DishInfo(
+                                item.getDishId(), item.getName(), duration);
+                    })
+                    .collect(Collectors.toList());
+            if (!dishInfos.isEmpty()) {
+                kitchenOrderService.addDishes(orderId, dishInfos);
+            }
+        } catch (Exception e) {
+            log.warn("加餐同步后厨任务失败（可能订单未注册后厨）: orderId={}, error={}", orderId, e.getMessage());
+        }
+
         log.info("加餐成功: orderId={}, 新增{}件商品, 追加金额={}", orderId, cartItems.size(), addAmount);
         return true;
     }
@@ -401,5 +475,178 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         int orderDeleted = this.getBaseMapper().deleteBatchIds(orderIds);
         log.info("历史订单清理完成: 订单{}笔, 明细{}条", orderDeleted, detailDeleted);
         return orderDeleted;
+    }
+
+    // 客户发起退款申请
+    @Override
+    @Transactional
+    public RefundRequest requestRefund(RefundRequest request) {
+        Long orderId = request.getOrderId();
+        Long userId = BaseContext.getCurrentUserId();
+        if (orderId == null) {
+            throw new CustomException("订单ID不能为空");
+        }
+        if (request.getRefundAmount() == null || request.getRefundAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new CustomException("退款金额必须大于0");
+        }
+        // 校验订单存在且属于当前用户
+        Orders order = this.getById(orderId);
+        if (order == null) {
+            throw new CustomException("订单不存在");
+        }
+        if (!order.getUserId().equals(userId)) {
+            throw new CustomException("只能对自己的订单发起退款");
+        }
+        // 只有制作中(2)或已完成(3)的订单可退款
+        if (order.getStatus() != 2 && order.getStatus() != 3) {
+            throw new CustomException("当前订单状态不可退款");
+        }
+        // 退款金额不能超过订单金额
+        if (request.getRefundAmount().compareTo(order.getAmount()) > 0) {
+            throw new CustomException("退款金额不能超过订单金额");
+        }
+        // 同一订单不能重复申请（仅阻断有进行中请求的订单，被拒后可重新申请）
+        RefundRequest existing = refundContext.getByOrderId(orderId);
+        if (existing != null && existing.getStatus() == 0) {
+            throw new CustomException("该订单已有退款申请在处理中");
+        }
+        // 构建退款申请
+        RefundRequest refund = new RefundRequest();
+        refund.setRefundId(IdWorker.getId());
+        refund.setOrderId(orderId);
+        refund.setUserId(userId);
+        refund.setRefundAmount(request.getRefundAmount());
+        refund.setRefundReason(request.getRefundReason());
+        refund.setStatus(0);
+        refund.setOriginalOrderStatus(order.getStatus());
+        refund.setCreateTime(LocalDateTime.now());
+        refund.setUpdateTime(LocalDateTime.now());
+        // 存入内存
+        refundContext.put(refund);
+        // 更新订单状态为退款申请中
+        order.setStatus(7);
+        this.updateById(order);
+        log.info("客户发起退款申请: refundId={}, orderId={}, amount={}", refund.getRefundId(), orderId, refund.getRefundAmount());
+        return refund;
+    }
+
+    // 客户查询退款进度
+    @Override
+    public RefundRequest getRefundStatus(Long orderId) {
+        if (orderId == null) {
+            throw new CustomException("订单ID不能为空");
+        }
+        RefundRequest refund = refundContext.getByOrderId(orderId);
+        if (refund == null) {
+            throw new CustomException("未找到退款申请");
+        }
+        return refund;
+    }
+
+    // 商家查看退款申请列表
+    @Override
+    public List<RefundRequest> getRefundRequests() {
+        return refundContext.getPendingList();
+    }
+
+    // 商家处理退款（同意/拒绝/部分退款）
+    @Override
+    @Transactional
+    public RefundRequest handleRefund(RefundRequest request) {
+        Long refundId = request.getRefundId();
+        if (refundId == null) {
+            throw new CustomException("退款申请ID不能为空");
+        }
+        RefundRequest refund = refundContext.getById(refundId);
+        if (refund == null) {
+            throw new CustomException("退款申请不存在");
+        }
+        if (refund.getStatus() != 0) {
+            throw new CustomException("该退款申请已处理过");
+        }
+        Integer handleStatus = request.getStatus();
+        if (handleStatus == null || (handleStatus != 1 && handleStatus != 2 && handleStatus != 3)) {
+            throw new CustomException("处理状态无效，请选择同意/拒绝/部分退款");
+        }
+        // 同意
+        if (handleStatus == 1) {
+            refund.setStatus(1);
+            refund.setActualRefund(refund.getRefundAmount());
+            refund.setMerchantReply(request.getMerchantReply());
+            refund.setUpdateTime(LocalDateTime.now());
+            // 更新订单状态为已退款
+            Orders order = this.getById(refund.getOrderId());
+            if (order != null) {
+                order.setStatus(6);
+                this.updateById(order);
+                // 恢复已估清菜品
+                restoreSoldOutDishes(refund.getOrderId());
+                // 联动收银台：累加退款金额
+                cashRegisterContext.addRefund(refund.getRefundAmount());
+            }
+        }
+        // 拒绝
+        if (handleStatus == 2) {
+            refund.setStatus(2);
+            refund.setMerchantReply(request.getMerchantReply());
+            refund.setUpdateTime(LocalDateTime.now());
+            // 恢复订单原始状态
+            Orders order = this.getById(refund.getOrderId());
+            if (order != null && order.getStatus() == 7) {
+                Integer originalStatus = refund.getOriginalOrderStatus();
+                order.setStatus(originalStatus != null ? originalStatus : 2);
+                this.updateById(order);
+            }
+        }
+        // 部分退款
+        if (handleStatus == 3) {
+            if (request.getActualRefund() == null || request.getActualRefund().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new CustomException("部分退款金额必须大于0");
+            }
+            if (request.getActualRefund().compareTo(refund.getRefundAmount()) > 0) {
+                throw new CustomException("实际退款金额不能超过申请金额");
+            }
+            refund.setStatus(3);
+            refund.setActualRefund(request.getActualRefund());
+            refund.setMerchantReply(request.getMerchantReply());
+            refund.setUpdateTime(LocalDateTime.now());
+            // 更新订单状态为部分退款
+            Orders order = this.getById(refund.getOrderId());
+            if (order != null) {
+                order.setStatus(8);
+                this.updateById(order);
+                // 恢复已估清菜品
+                restoreSoldOutDishes(refund.getOrderId());
+                // 联动收银台：累加退款金额
+                cashRegisterContext.addRefund(request.getActualRefund());
+            }
+        }
+        refundContext.update(refund);
+        log.info("商家处理退款: refundId={}, status={}, actualRefund={}", refundId, handleStatus, refund.getActualRefund());
+        return refund;
+    }
+
+    // 恢复订单中已估清的菜品
+    private void restoreSoldOutDishes(Long orderId) {
+        try {
+            LambdaQueryWrapper<OrderDetail> detailLqw = new LambdaQueryWrapper<>();
+            detailLqw.eq(OrderDetail::getOrderId, orderId);
+            List<OrderDetail> details = orderDetailService.list(detailLqw);
+            if (details != null && !details.isEmpty()) {
+                for (OrderDetail detail : details) {
+                    Long dishId = detail.getDishId();
+                    if (dishId != null) {
+                        Dish dish = dishService.getById(dishId);
+                        if (dish != null && dish.getStatus() == 2) {
+                            dish.setStatus(1);
+                            dishService.updateById(dish);
+                            log.info("退款恢复估清菜品: dishId={}, dishName={}", dishId, dish.getName());
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("退款恢复估清菜品失败: orderId={}, error={}", orderId, e.getMessage());
+        }
     }
 }

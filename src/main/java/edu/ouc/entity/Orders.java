@@ -58,4 +58,8 @@ public class Orders implements Serializable {
 
     // 收获联系人
     private String consignee;
+
+    // 桌台号（仅内存传递，不映射数据库字段）
+    @TableField(exist = false)
+    private String tableNo;
 }

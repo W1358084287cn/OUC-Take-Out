@@ -31,14 +31,14 @@
             <div class="divDesc">
                 <div class="divName">听海餐厅</div>
                 <div class="divSend">
-                    <span><img src="./images/time.png" alt="时间"/> 距离1.5km</span>
-                    <span><img src="./images/money.png" alt="配送费"/> 配送费6元</span>
-                    <span><img src="./images/location.png" alt="位置"/> 预计时长12min</span>
+                    <span><img src="./images/time.png" alt="时间"/> 营业中</span>
+                    <span><img src="./images/money.png" alt="费用"/> 堂食/自取</span>
+                    <span><img src="./images/location.png" alt="位置"/> 预计出餐12min</span>
                 </div>
             </div>
         </div>
         <div class="divDesc">
-            简介: 听海餐厅是中国海洋大学西海岸校区的学生餐厅，定位“大众化的美食外送餐饮”，旨为海大学生打造美食。
+            简介: 听海餐厅是中国海洋大学西海岸校区的学生餐厅，定位“大众化的校园餐饮”，旨为海大学生打造美食。
         </div>
         <div class="divSearch">
             <van-search
@@ -67,18 +67,23 @@
         <div class="divMenu">
             <div>
                 <div v-if="isSearching && dishList.length === 0" class="divNoResult">暂无相关菜品或套餐</div>
-                <div class="divItem" v-for="(item,index) in dishList" :key="index" @click="dishDetails(item)">
-                    <el-image :src="imgPathConvert(item.image)">
-                        <div slot="error" class="image-slot">
-                            <img src="./images/noImg.png" alt="暂无图片"/>
-                        </div>
-                    </el-image>
+                <div class="divItem" v-for="(item,index) in dishList" :key="index"
+                     :class="{soldOutItem: item.status === 2}"
+                     @click="item.status !== 2 && dishDetails(item)">
+                    <div class="imgWrapper">
+                        <el-image :src="imgPathConvert(item.image)">
+                            <div slot="error" class="image-slot">
+                                <img src="./images/noImg.png" alt="暂无图片"/>
+                            </div>
+                        </el-image>
+                        <div class="soldOutMask" v-if="item.status === 2">已售罄</div>
+                    </div>
                     <div>
                         <div class="divName">{{item.name}}</div>
                         <div class="divDesc">{{item.description}}</div>
                         <div class="divDesc">{{'月销' + (item.saleNum ? item.saleNum : 0) }}</div>
                         <div class="divBottom"><span>￥</span><span>{{Number(item.price).toFixed(2)}}</span></div>
-                        <div class="divNum">
+                        <div class="divNum" v-if="item.status !== 2">
                             <div class="divSubtract" v-if="item.number > 0">
                                 <img src="./images/subtract.png" alt="减少" @click.prevent.stop="subtractCart(item)"/>
                             </div>
@@ -496,6 +501,10 @@
             },
             //菜单中往购物车中添加商品
             async addCart(item) {
+                if (item.status === 2) {
+                    this.$notify({ type: 'warning', message: '该菜品已估清，暂时无法添加' })
+                    return
+                }
                 let params = {
                     amount: item.price,//金额
                     dishFlavor: item.dishFlavor,//口味  如果没有传undefined

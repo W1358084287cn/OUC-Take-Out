@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import edu.ouc.common.BaseContext;
 import edu.ouc.common.CustomException;
 import edu.ouc.entity.User;
+import edu.ouc.filter.LoginCheckFilter;
 import edu.ouc.mapper.UserMapper;
 import edu.ouc.service.IUserService;
 import edu.ouc.utils.MailUtils;
@@ -41,7 +42,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 1.获取前端传来的用户邮箱
         String email = user.getEmail();
         // 2.如果邮箱不为空才进行下一步操作
-        if (!email.isEmpty()) {
+        if (email != null && !email.isEmpty()) {
             // 2.1 随机生成六位数验证码
             String code = MailUtils.getCode();
             // 2.2 发送验证码邮件
@@ -61,7 +62,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 获取前端传送来的验证码
         String code = map.get("code");
         // 验证邮箱和验证码是否为空，如果为空则直接登录失败
-        if (email.isEmpty() || code.isEmpty()) {
+        if (email == null || email.isEmpty() || code == null || code.isEmpty()) {
             throw new CustomException("邮箱或验证码不能为空");
         }
 
@@ -91,6 +92,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         // 最后把这个登录用户存到session保存作用域中，表示已登录，让拦截器放行
         session.setAttribute("user", user.getId());
+        // 注册Redis在线会话：新登录自动踢掉该用户在其他浏览器的旧会话
+        LoginCheckFilter.trackOnlineSession(redisTemplate, session.getId(), "user", user.getId());
 
         // 用户登录成功，删除Redis中缓存的验证码
         redisTemplate.delete(email);
@@ -107,6 +110,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 清除Session保存作用域中保存的数据
         session.removeAttribute("user");
         session.removeAttribute(email);
+        // 移除Redis在线会话记录
+        if (userId != null) {
+            LoginCheckFilter.removeOnlineSession(redisTemplate, "user", userId);
+        }
         return true;
     }
 }

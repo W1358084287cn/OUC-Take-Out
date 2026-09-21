@@ -191,7 +191,6 @@
 #main .divBody .divMenu .divItem .el-image {
     width: 86rem;
     height: 86rem;
-    margin-right: 14rem;
 }
 
 #main .divBody .divMenu .divItem .el-image img {
@@ -292,6 +291,46 @@
 #main .divBody .divMenu .divItem .divNum img {
     width: 36rem;
     height: 36rem;
+}
+
+/* 估清菜品灰色显示 */
+#main .divBody .divMenu .divItem.soldOutItem {
+    opacity: 0.55;
+    filter: grayscale(80%);
+}
+
+#main .divBody .divMenu .divItem .imgWrapper {
+    position: relative;
+    width: 86rem;
+    height: 86rem;
+    margin-right: 14rem;
+}
+
+#main .divBody .divMenu .divItem .imgWrapper .el-image {
+    width: 86rem;
+    height: 86rem;
+}
+
+#main .divBody .divMenu .divItem .imgWrapper .el-image img {
+    width: 86rem;
+    height: 86rem;
+    border-radius: 5rem;
+}
+
+#main .divBody .divMenu .divItem .soldOutMask {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.65);
+    color: #ffffff;
+    font-size: 14rem;
+    font-family: PingFangSC, PingFangSC-Semibold;
+    font-weight: 600;
+    padding: 4rem 12rem;
+    border-radius: 4rem;
+    white-space: nowrap;
+    pointer-events: none;
 }
 
 #main .divCart {

@@ -151,3 +151,70 @@
   height: 33rem;
   margin-top: 20rem;
 }
+
+/* 退款弹窗样式 */
+.refund-popup {
+  padding: 20rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.refund-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18rem;
+  font-weight: 600;
+  margin-bottom: 20rem;
+}
+
+.refund-body {
+  flex: 1;
+}
+
+.refund-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 16rem;
+}
+
+.refund-label {
+  width: 80rem;
+  font-size: 14rem;
+  color: #666;
+  flex-shrink: 0;
+  padding-top: 8rem;
+}
+
+.refund-value {
+  font-size: 14rem;
+  color: #333;
+  padding-top: 8rem;
+}
+
+.refund-input {
+  flex: 1;
+  height: 36rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 4rem;
+  padding: 0 10rem;
+  font-size: 14rem;
+}
+
+.refund-textarea {
+  flex: 1;
+  border: 1px solid #e5e5e5;
+  border-radius: 4rem;
+  padding: 8rem 10rem;
+  font-size: 14rem;
+  resize: none;
+}
+
+.refund-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10rem;
+  padding-top: 15rem;
+  border-top: 1px solid #f5f5f5;
+}

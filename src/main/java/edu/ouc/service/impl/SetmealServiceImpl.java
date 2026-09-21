@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import edu.ouc.common.CustomException;
 import edu.ouc.dto.SetmealDto;
+import edu.ouc.entity.Category;
 import edu.ouc.entity.Dish;
 import edu.ouc.entity.Setmeal;
 import edu.ouc.entity.SetmealDish;
@@ -100,7 +101,11 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
             // 9.2 把setmeal中的信息复制到setmealDto中
             BeanUtils.copyProperties(setmeal, setmealDto);
             // 9.3 获取类别名称
-            String categoryName = categoryService.getById(setmeal.getCategoryId()).getName();
+            String categoryName = "未知分类";
+            Category cat = categoryService.getById(setmeal.getCategoryId());
+            if (cat != null) {
+                categoryName = cat.getName();
+            }
             // 9.4 给setmealDto设置类别名称
             setmealDto.setCategoryName(categoryName);
             // 9.5 返回setmealDto对象
@@ -169,6 +174,8 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
 
             // 创建dish的条件包装器
             LambdaQueryWrapper<Dish> lqw1 = new LambdaQueryWrapper<>();
+            // 添加过滤条件：IN 套餐关联的菜品ID
+            lqw1.in(Dish::getId, dishIds);
             // 添加过滤条件：查询停售的dish
             lqw1.eq(Dish::getStatus, 0);
             // 根据条件封装器lqw查询满足条件的dish实体类对象构成的集合

@@ -57,6 +57,17 @@
             color: #999;
             margin-top: 10px;
         }
+
+        .refund-badge { margin-left: 6px; }
+
+        .refund-badge .el-badge__content {
+            animation: badgePulse 1.5s infinite;
+        }
+
+        @keyframes badgePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+        }
     </style>
 </head>
 <body>
@@ -86,6 +97,10 @@
                        icon="el-icon-delete">批量删除
             </el-button>
             <el-button type="warning" @click="openCleanDialog" icon="el-icon-delete-solid">清理历史订单</el-button>
+            <el-button type="primary" @click="openRefundReview" icon="el-icon-s-check">
+                退款审核
+                <el-badge :value="refundRequestCount" class="refund-badge" v-if="refundRequestCount > 0" />
+            </el-button>
             <span v-if="multipleSelection.length" style="margin-left: 10px;color: #606266;">
                 已选 {{ multipleSelection.length }} 笔订单
             </span>
@@ -113,7 +128,7 @@
                         查看
                     </el-button>
                     <el-divider v-if="row.status === 2" direction="vertical"></el-divider>
-                    <el-button v-if="row.status === 2" type="text" @click="cancelOrDeliveryOrComplete(3, row.id)"
+                    <el-button v-if="row.status === 2" type="text" @click="completeOrder(3, row.id)"
                                class="blueBug">
                         完成
                     </el-button>
@@ -121,6 +136,10 @@
                     <el-button v-if="row.status === 2" type="text" @click="refundHandle(row)"
                                class="delBut">
                         退款
+                    </el-button>
+                    <el-button v-if="row.status === 7" type="text" @click="handleRefundBtn(row)"
+                               style="color:#e6a23c;">
+                        处理退款
                     </el-button>
                     <el-divider direction="vertical"></el-divider>
                     <el-button type="text" @click="deleteHandle(row)" class="delBut">
@@ -200,6 +219,72 @@
             <el-button type="warning" @click="cleanOrderHandle">确定清理</el-button>
         </span>
     </el-dialog>
+
+    <!-- 退款审核弹框 -->
+    <el-dialog
+            title="退款审核"
+            :visible.sync="refundReviewVisible"
+            width="60%"
+            :before-close="handleRefundReviewClose"
+    >
+        <el-table :data="refundRequestList" stripe max-height="400">
+            <el-table-column prop="refundId" label="退款编号" width="180"></el-table-column>
+            <el-table-column prop="orderId" label="订单ID" width="180"></el-table-column>
+            <el-table-column prop="refundAmount" label="申请退款金额" width="130">
+                <template slot-scope="{ row }">
+                    <span>￥{{ row.refundAmount }}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="refundReason" label="退款原因" show-overflow-tooltip></el-table-column>
+            <el-table-column prop="createTime" label="申请时间" width="170"></el-table-column>
+            <el-table-column label="操作" width="100">
+                <template slot-scope="{ row }">
+                    <el-button type="warning" size="mini" @click="handleRefundBtnDetail(row)">处理</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+        <div v-if="refundRequestList.length === 0" style="text-align:center;padding:30px;color:#999;">暂无退款申请</div>
+    </el-dialog>
+
+    <!-- 退款处理详情弹框 -->
+    <el-dialog
+            title="处理退款申请"
+            :visible.sync="refundHandleVisible"
+            width="450px"
+            :before-close="handleRefundDialogClose"
+    >
+        <el-form label-width="100px">
+            <el-form-item label="退款编号">
+                <span>{{ currentRefund.refundId }}</span>
+            </el-form-item>
+            <el-form-item label="订单ID">
+                <span>{{ currentRefund.orderId }}</span>
+            </el-form-item>
+            <el-form-item label="申请金额">
+                <span>￥{{ currentRefund.refundAmount }}</span>
+            </el-form-item>
+            <el-form-item label="退款原因">
+                <span>{{ currentRefund.refundReason }}</span>
+            </el-form-item>
+            <el-form-item label="处理方式">
+                <el-radio-group v-model="refundHandleForm.status">
+                    <el-radio :label="1">同意退款</el-radio>
+                    <el-radio :label="2">拒绝退款</el-radio>
+                    <el-radio :label="3">部分退款</el-radio>
+                </el-radio-group>
+            </el-form-item>
+            <el-form-item label="退款金额" v-if="refundHandleForm.status === 3">
+                <el-input-number v-model="refundHandleForm.actualRefund" :min="0.01" :max="currentRefund.refundAmount" :precision="2"></el-input-number>
+            </el-form-item>
+            <el-form-item label="回复客户">
+                <el-input type="textarea" v-model="refundHandleForm.merchantReply" rows="3" placeholder="选填，给客户的回复信息"></el-input>
+            </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+            <el-button @click="refundHandleVisible = false">取消</el-button>
+            <el-button type="primary" @click="submitRefundHandle" :loading="refundHandling">确认处理</el-button>
+        </span>
+    </el-dialog>
 </div>
 <!-- 开发环境版本，包含了有帮助的命令行警告 -->
 <script src="../../plugins/vue/vue.js"></script>
@@ -229,7 +314,19 @@
                 multipleSelection: [],
                 // 清理弹框
                 cleanDialogVisible: false,
-                cleanDays: 90
+                cleanDays: 90,
+                // 退款审核
+                refundReviewVisible: false,
+                refundRequestList: [],
+                refundRequestCount: 0,
+                refundHandleVisible: false,
+                currentRefund: {},
+                refundHandleForm: {
+                    status: 1,
+                    actualRefund: 0,
+                    merchantReply: ''
+                },
+                refundHandling: false
             }
         },
         computed: {},
@@ -246,11 +343,16 @@
         },
         created() {
             this.init()
-            // 加载配置的保留天数
             this.loadRetentionDays()
+            this.checkRefundUnread()
         },
         mounted() {
-            // this.loading = false
+            this.unreadTimer = setInterval(() => {
+                this.checkRefundUnread()
+            }, 5000)
+        },
+        beforeDestroy() {
+            if (this.unreadTimer) clearInterval(this.unreadTimer)
         },
         methods: {
             async init() {
@@ -301,6 +403,12 @@
                         break;
                     case 6:
                         str = '已退款'
+                        break;
+                    case 7:
+                        str = '退款申请中'
+                        break;
+                    case 8:
+                        str = '部分退款'
                         break;
 
                 }
@@ -381,14 +489,102 @@
                     })
                 }).catch(() => {})
             },
+            // 打开退款审核弹窗
+            openRefundReview() {
+                this.refundReviewVisible = true
+                this.loadRefundRequests()
+                // 标记为已读，清除红点
+                markRefundViewedApi().then(res => {
+                    if (res.code === 1) {
+                        this.refundRequestCount = 0
+                    }
+                }).catch(() => {})
+            },
+            // 加载退款申请列表
+            loadRefundRequests() {
+                getRefundRequestsApi().then(res => {
+                    if (res.code === 1) {
+                        this.refundRequestList = res.data || []
+                        this.refundRequestCount = this.refundRequestList.length
+                    }
+                }).catch(err => {
+                    this.$message.error('加载退款申请失败：' + err)
+                })
+            },
+            handleRefundReviewClose() {
+                this.refundReviewVisible = false
+            },
+            // 从订单列表点"处理退款"按钮
+            handleRefundBtn(row) {
+                // 先加载退款申请，找到对应orderId的申请
+                getRefundRequestsApi().then(res => {
+                    if (res.code === 1) {
+                        const refundList = res.data || []
+                        const refund = refundList.find(r => String(r.orderId) === String(row.id))
+                        if (refund) {
+                            this.openRefundHandleDialog(refund)
+                        } else {
+                            this.$message.warning('未找到该订单的退款申请')
+                        }
+                    }
+                }).catch(err => {
+                    this.$message.error('加载退款申请失败：' + err)
+                })
+            },
+            // 从退款审核列表点"处理"按钮
+            handleRefundBtnDetail(row) {
+                this.openRefundHandleDialog(row)
+            },
+            // 打开退款处理详情弹窗
+            openRefundHandleDialog(refund) {
+                this.currentRefund = { ...refund }
+                this.refundHandleForm = {
+                    status: 1,
+                    actualRefund: 0,
+                    merchantReply: ''
+                }
+                this.refundHandleVisible = true
+            },
+            handleRefundDialogClose() {
+                this.refundHandleVisible = false
+            },
+            // 提交退款处理
+            submitRefundHandle() {
+                if (this.refundHandleForm.status === 3 && (!this.refundHandleForm.actualRefund || this.refundHandleForm.actualRefund <= 0)) {
+                    this.$message.warning('请填写部分退款金额')
+                    return
+                }
+                this.refundHandling = true
+                const params = {
+                    refundId: this.currentRefund.refundId,
+                    status: this.refundHandleForm.status,
+                    actualRefund: this.refundHandleForm.status === 3 ? this.refundHandleForm.actualRefund : this.currentRefund.refundAmount,
+                    merchantReply: this.refundHandleForm.merchantReply
+                }
+                handleRefundApi(params).then(res => {
+                    if (res.code === 1) {
+                        const statusText = { 1: '已同意退款', 2: '已拒绝退款', 3: '已处理部分退款' }
+                        this.$message.success(statusText[this.refundHandleForm.status] || '处理完成')
+                        this.refundHandleVisible = false
+                        this.refundReviewVisible = false
+                        this.init()
+                    } else {
+                        this.$message.error(res.msg || '处理失败')
+                    }
+                    this.refundHandling = false
+                }).catch(err => {
+                    this.$message.error('请求出错了：' + err)
+                    this.refundHandling = false
+                })
+            },
             // 查看详情
             goDetail(row) {
                 this.diaForm = {}
                 this.dialogVisible = true
                 this.diaForm = {...row}
             },
-            // 取消，完成
-            cancelOrDeliveryOrComplete(status, id) {
+            // 完成订单
+            completeOrder(status, id) {
                 const params = {
                     status,
                     id
@@ -428,6 +624,17 @@
                     }).catch(err => {
                         this.$message.error('请求出错了：' + err)
                     })
+                }).catch(() => {})
+            },
+            // 轮询更新退款未读数（仅红点，语音/弹窗由父框架处理）
+            checkRefundUnread() {
+                getRefundUnreadCountApi().then(res => {
+                    if (res.code === 1) {
+                        const count = res.data || 0
+                        if (!this.refundReviewVisible) {
+                            this.refundRequestCount = count
+                        }
+                    }
                 }).catch(() => {})
             },
             handleClose() {

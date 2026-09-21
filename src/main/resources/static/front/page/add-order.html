@@ -27,16 +27,24 @@
     </div>
     <div class="divContent">
         <div class="divAddress">
-            <div @click="toAddressPage">
-                <div class="address">{{address.detail || '请选择收货地址'}}</div>
-                <div class="name">
-                    <span>{{address.consignee ? (address.consignee + (address.sex === '1' ? '先生':'女士')) : '收货人姓名'}}</span>
-                    <span>{{address.phone || '联系电话'}}</span>
-                </div>
-                <i class="el-icon-arrow-right"></i>
+            <div>
+                <template v-if="isTableMode">
+                    <div class="address">桌号 {{ tableNo }}</div>
+                    <div class="name">
+                        <span>堂食点餐</span>
+                        <span>无需自取</span>
+                    </div>
+                </template>
+                <template v-else>
+                    <div class="address">自取</div>
+                    <div class="name">
+                        <span>{{ userName || '同学' }}</span>
+                        <span>{{ userEmail || '' }}</span>
+                    </div>
+                </template>
             </div>
             <div class="divSplit"></div>
-            <div class="divFinishTime">预计{{finishTime}}送达</div>
+            <div class="divFinishTime">预计{{finishTime}}取餐</div>
         </div>
         <div class="order">
             <div class="title">订单明细</div>
@@ -93,7 +101,6 @@
 <script src="../../backend/plugins/element-ui/index.js"></script>
 <!-- 引入vant样式 -->
 <script src="./../js/vant.min.js"></script>
-<script src="./../api/address.js"></script>
 <!-- 引入axios -->
 <script src="../../backend/plugins/axios/axios.min.js"></script>
 <script src="./../js/request.js"></script>
@@ -105,22 +112,20 @@
         el: "#add_order",
         data() {
             return {
-                address: {
-                    phone: '',//手机号
-                    consignee: '',//姓名
-                    detail: '',//详细地址
-                    sex: '1',
-                    id: undefined
-                },
-                finishTime: '',//送达时间
+                finishTime: '',//取餐时间
                 cartData: [],
                 note: '',//备注信息
                 addItemsOrderId: null,//加餐模式订单ID
                 tableId: null,     //桌台ID
-                tableNo: ''        //桌号
+                tableNo: '',       //桌号
+                userName: '',      //用户名（带走模式用）
+                userEmail: ''      //用户邮箱（带走模式用）
             }
         },
         computed: {
+            isTableMode() {
+                return !!this.tableId
+            },
             goodsNum() {
                 let num = 0
                 this.cartData.forEach(item => {
@@ -165,24 +170,21 @@
                 history.go(-1)
             },
             initData() {
-                //获取默认的地址
-                this.defaultAddress()
+                //带走模式加载用户信息
+                if (!this.isTableMode) {
+                    this.initUserInfo()
+                }
+                this.getFinishTime()
                 //获取购物车的商品
                 this.getCartData()
             },
-            //获取默认地址
-            async defaultAddress() {
-                const res = await getDefaultAddressApi()
-                if (res.code === 1) {
-                    this.address = res.data
-                    this.getFinishTime()
-                } else {
-                    window.requestAnimationFrame(() => {
-                        window.location.href = '/front/page/address-edit.html'
-                    })
-                }
+            //加载用户信息（带走模式用）
+            initUserInfo() {
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+                this.userName = userInfo.name || '同学'
+                this.userEmail = sessionStorage.getItem('userEmail') || ''
             },
-            //获取送达时间
+            //获取取餐时间
             getFinishTime() {
                 let now = new Date()
                 let hour = now.getHours() + 1
@@ -194,11 +196,6 @@
                     minute = '0' + minute
                 }
                 this.finishTime = hour + ':' + minute
-            },
-            toAddressPage() {
-                window.requestAnimationFrame(() => {
-                    window.location.href = '/front/page/address.html'
-                })
             },
             //获取购物车数据
             async getCartData() {
@@ -228,8 +225,7 @@
                 const params = {
                     remark: this.note,
                     payMethod: 1,
-                    addressBookId: this.address.id,
-                    tableId: this.tableId
+                    tableNo: this.isTableMode ? this.tableNo : undefined
                 }
                 // 正常下单时清理加餐残留标记
                 localStorage.removeItem('addItemsOrderId')
@@ -240,7 +236,8 @@
                     window.requestAnimationFrame(() => {
                         window.location.replace('/front/page/pay.html?orderId=' + order.id
                             + '&orderNumber=' + order.number
-                            + '&amount=' + Number(order.amount).toFixed(2))
+                            + '&amount=' + Number(order.amount).toFixed(2)
+                            + (this.tableId ? '&tableId=' + this.tableId + '&tableNo=' + this.tableNo : ''))
                     })
                 } else {
                     this.$notify({type: 'warning', message: res.msg});

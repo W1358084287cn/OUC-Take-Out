@@ -46,10 +46,13 @@
                 <div class="result">
                     <span>共{{order.sumNum || 0}} 件商品,实付</span><span class="price">￥{{Number(order.amount || 0).toFixed(2)}}</span>
                 </div>
-                <div class="btn" v-if="order.status === 1 || order.status === 2 || order.status === 3">
+                <div class="btn" v-if="order.status === 1 || order.status === 2 || order.status === 3 || order.status === 7 || order.status === 8">
                     <div class="btnAgain" v-if="order.status === 1" @click="goPay(order)">去付款</div>
                     <div class="btnAgain" v-if="order.status === 2" @click="addItems(order)">加餐</div>
+                    <div class="btnAgain" v-if="order.status === 2 || order.status === 3" @click="showRefundDialog(order)" style="background:#ff6b6b;color:#fff;border:1px solid #ff6b6b;">申请退款</div>
                     <div class="btnAgain" v-if="order.status === 3" @click="addOrderAgain(order)">再来一单</div>
+                    <div class="btnAgain" v-if="order.status === 7" style="background:#f5f5f5;color:#999;cursor:not-allowed;">退款审核中...</div>
+                    <div class="btnAgain" v-if="order.status === 8" style="background:#f5f5f5;color:#666;cursor:not-allowed;">已部分退款</div>
                 </div>
             </van-cell>
         </van-list>
@@ -60,6 +63,38 @@
             <div>暂无订单</div>
         </div>
     </div>
+
+    <!-- 退款申请弹窗 -->
+    <van-popup v-model="refundDialogShow" position="bottom" :style="{ height: '55%' }" round>
+        <div class="refund-popup">
+            <div class="refund-header">
+                <span>申请退款</span>
+                <van-icon name="cross" @click="refundDialogShow = false" />
+            </div>
+            <div class="refund-body">
+                <div class="refund-item">
+                    <span class="refund-label">订单号</span>
+                    <span class="refund-value">{{ refundForm.orderNumber }}</span>
+                </div>
+                <div class="refund-item">
+                    <span class="refund-label">订单金额</span>
+                    <span class="refund-value">￥{{ Number(refundForm.orderAmount || 0).toFixed(2) }}</span>
+                </div>
+                <div class="refund-item">
+                    <span class="refund-label">退款金额</span>
+                    <input type="number" v-model="refundForm.refundAmount" class="refund-input" placeholder="请输入退款金额" />
+                </div>
+                <div class="refund-item">
+                    <span class="refund-label">退款原因</span>
+                    <textarea v-model="refundForm.refundReason" class="refund-textarea" placeholder="请填写退款原因..." rows="3"></textarea>
+                </div>
+            </div>
+            <div class="refund-footer">
+                <van-button type="default" @click="refundDialogShow = false">取消</van-button>
+                <van-button type="danger" @click="submitRefund" :loading="refundSubmitting">确认申请</van-button>
+            </div>
+        </div>
+    </van-popup>
 </div>
 <!-- 开发环境版本，包含了有帮助的命令行警告 -->
 <script src="../../backend/plugins/vue/vue.js"></script>
@@ -82,7 +117,17 @@
                 },
                 orderList: [],
                 loading: false,
-                finished: false
+                finished: false,
+                // 退款弹窗
+                refundDialogShow: false,
+                refundSubmitting: false,
+                refundForm: {
+                    orderId: null,
+                    orderNumber: '',
+                    orderAmount: 0,
+                    refundAmount: 0,
+                    refundReason: ''
+                }
             }
         },
         computed: {},
@@ -90,6 +135,12 @@
             this.initData()
         },
         mounted() {
+            this.statusTimer = setInterval(() => {
+                this.refreshOrderStatuses()
+            }, 5000)
+        },
+        beforeDestroy() {
+            if (this.statusTimer) clearInterval(this.statusTimer)
         },
         methods: {
             goBack() {
@@ -152,6 +203,75 @@
                     this.$notify({type: 'warning', message: res.msg});
                 }
             },
+            // 显示退款弹窗
+            showRefundDialog(order) {
+                this.refundForm = {
+                    orderId: order.id,
+                    orderNumber: order.number,
+                    orderAmount: order.amount,
+                    refundAmount: order.amount,
+                    refundReason: ''
+                }
+                this.refundDialogShow = true
+            },
+            // 提交退款申请
+            async submitRefund() {
+                if (!this.refundForm.refundReason || this.refundForm.refundReason.trim() === '') {
+                    this.$notify({type: 'warning', message: '请填写退款原因'});
+                    return
+                }
+                if (!this.refundForm.refundAmount || Number(this.refundForm.refundAmount) <= 0) {
+                    this.$notify({type: 'warning', message: '退款金额必须大于0'});
+                    return
+                }
+                if (Number(this.refundForm.refundAmount) > Number(this.refundForm.orderAmount)) {
+                    this.$notify({type: 'warning', message: '退款金额不能超过订单金额'});
+                    return
+                }
+                this.refundSubmitting = true
+                try {
+                    const res = await requestRefundApi({
+                        orderId: this.refundForm.orderId,
+                        refundAmount: this.refundForm.refundAmount,
+                        refundReason: this.refundForm.refundReason
+                    })
+                    if (res.code === 1) {
+                        this.$notify({type: 'success', message: '退款申请已提交，请等待商家处理'});
+                        this.refundDialogShow = false
+                        // 更新订单列表中该订单状态为退款申请中
+                        const order = this.orderList.find(o => o.id === this.refundForm.orderId)
+                        if (order) {
+                            order._origStatus = order.status
+                            order.status = 7
+                        }
+                    } else {
+                        this.$notify({type: 'warning', message: res.msg || '退款申请失败'});
+                    }
+                } catch (e) {
+                    this.$notify({type: 'warning', message: '网络错误，请重试'});
+                }
+                this.refundSubmitting = false
+            },
+            // 定时刷新退款中的订单状态
+            async refreshOrderStatuses() {
+                const pendingOrders = this.orderList.filter(o => o.status === 7)
+                if (pendingOrders.length === 0) return
+                for (const order of pendingOrders) {
+                    try {
+                        const res = await getRefundStatusApi(order.id)
+                        if (res.code === 1 && res.data) {
+                            const refund = res.data
+                            if (refund.status === 1) {
+                                order.status = 6
+                            } else if (refund.status === 2) {
+                                order.status = order._origStatus || 3
+                            } else if (refund.status === 3) {
+                                order.status = 8
+                            }
+                        }
+                    } catch (e) {}
+                }
+            },
             getStatus(status) {
                 let str = ''
                 switch (status) {
@@ -169,6 +289,15 @@
                         break;
                     case 5:
                         str = '已取消'
+                        break;
+                    case 6:
+                        str = '已退款'
+                        break;
+                    case 7:
+                        str = '退款申请中'
+                        break;
+                    case 8:
+                        str = '部分退款'
                         break;
 
                 }

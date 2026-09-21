@@ -50,3 +50,20 @@ function addItemsApi(data) {
       data
   })
 }
+
+//申请退款
+function requestRefundApi(data) {
+  return $axios({
+      'url': '/order/requestRefund',
+      'method': 'post',
+      data
+  })
+}
+
+//查询退款进度
+function getRefundStatusApi(orderId) {
+  return $axios({
+      'url': `/order/refundStatus/${orderId}`,
+      'method': 'get'
+  })
+}
