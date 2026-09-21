@@ -14,7 +14,7 @@ import edu.ouc.service.IDishService;
 import edu.ouc.service.ISetmealDishService;
 import edu.ouc.service.ISetmealService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.util.Strings;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -34,7 +34,6 @@ import java.util.stream.Collectors;
  * Modified By:
  */
 @Slf4j
-// noinspection SpringTransactionalMethodCallsInspection
 @Service
 public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> implements ISetmealService {
 
@@ -59,6 +58,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
     public Boolean saveWithSetmealDishes(SetmealDto setmealDto) {
         // 1.保存套餐的基本信息
         this.save(setmealDto);
+        log.info("新增套餐: id={}, name={}, price={}", setmealDto.getId(), setmealDto.getName(), setmealDto.getPrice());
 
         // 2.获取套餐菜品集合
         List<SetmealDish> setmealDishes = setmealDto.getSetmealDishes();
@@ -138,6 +138,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
     @Transactional  // 修改两张表不能忘记事务注解
     @CacheEvict(value = "setmealCache", key = "#setmealDto.categoryId + '_' + #setmealDto.status")
     public Boolean updateWithDishes(SetmealDto setmealDto) {
+        log.info("修改套餐: id={}, name={}, price={}", setmealDto.getId(), setmealDto.getName(), setmealDto.getPrice());
         // 1.修改setmeal基本信息
         this.updateById(setmealDto);
 
@@ -159,6 +160,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
     // (批量)套餐启售/停售
     @Override
     public Boolean updateStatus(Integer status, List<Long> ids) {
+        log.info("套餐状态变更: status={}, ids={}", status, ids);
 
         // 启售套餐前，应检查套餐关联菜品是否存在且在售
         if (status == 1) {
@@ -203,6 +205,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
     @Override
     @Transactional // 删除两张表必须添加事务注解
     public Boolean removeWithDish(List<Long> ids) {
+        log.info("删除套餐: ids={}", ids);
 
         // 1.首先判断当前套餐的售卖状态
         // 1.1 获取待删除套餐构成的集合
@@ -245,7 +248,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
         // 2.添加过滤条件：根据分类ID查询套餐
         lqw.eq(setmeal.getCategoryId() != null, Setmeal::getCategoryId, setmeal.getCategoryId());
         // 3.添加过滤条件：按套餐名称模糊搜索
-        lqw.like(Strings.isNotEmpty(name), Setmeal::getName, name);
+        lqw.like(StringUtils.isNotEmpty(name), Setmeal::getName, name);
         // 4.添加过滤条件：只查询启售的套餐
         lqw.eq(Setmeal::getStatus, 1);
         // 5.添加排序条件：根据修改时间降序排列

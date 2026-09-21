@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>收银台</title>
+    <link rel="stylesheet" href="../../plugins/element-ui/index.css"/>
+    <link rel="stylesheet" href="../../styles/common.css"/>
+    <link rel="stylesheet" href="../../styles/page.css"/>
+    <style>
+        .cashier-container { padding: 20px; }
+        .stat-cards { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 30px; }
+        .stat-card { flex: 1; min-width: 200px; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center; }
+        .stat-card .label { font-size: 14px; color: #999; margin-bottom: 8px; }
+        .stat-card .value { font-size: 28px; font-weight: 600; color: #333; }
+        .stat-card .value.primary { color: #409EFF; }
+        .stat-card .value.success { color: #67C23A; }
+        .stat-card .value.warning { color: #E6A23C; }
+        .stat-card .value.danger { color: #F56C6C; }
+        .tableBar { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+<div class="dashboard-container" id="cashier-app" v-loading="loading">
+    <div class="container">
+        <div class="tableBar">
+            <span style="font-size:18px;font-weight:600;">今日收银概览</span>
+            <el-button type="primary" size="small" @click="refresh" style="float:right;">刷新</el-button>
+        </div>
+
+        <div class="stat-cards">
+            <div class="stat-card">
+                <div class="label">今日订单总数</div>
+                <div class="value primary">{{ data.totalOrders || 0 }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">今日营业额</div>
+                <div class="value primary">￥{{ (data.totalAmount || 0).toFixed(2) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">已完成订单</div>
+                <div class="value success">{{ data.completedOrders || 0 }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">已完成金额</div>
+                <div class="value success">￥{{ (data.completedAmount || 0).toFixed(2) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">制作中</div>
+                <div class="value warning">{{ data.makingOrders || 0 }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">退款订单</div>
+                <div class="value danger">{{ data.refundOrders || 0 }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">退款金额</div>
+                <div class="value danger">￥{{ (data.refundAmount || 0).toFixed(2) }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../../plugins/vue/vue.js"></script>
+<script src="../../plugins/element-ui/index.js"></script>
+<script src="../../plugins/axios/axios.min.js"></script>
+<script src="../../js/request.js?v=20260920"></script>
+<script>
+    new Vue({
+        el: '#cashier-app',
+        data() {
+            return {
+                loading: false,
+                data: {}
+            }
+        },
+        created() {
+            this.loadData()
+        },
+        mounted() {
+            this.timer = setInterval(() => {
+                this.loadData()
+            }, 30000)
+        },
+        beforeDestroy() {
+            if (this.timer) {
+                clearInterval(this.timer)
+            }
+        },
+        methods: {
+            loadData() {
+                this.loading = true
+                $axios({
+                    url: '/cashier/today',
+                    method: 'get'
+                }).then(res => {
+                    if (res.code === 1) {
+                        this.data = res.data || {}
+                    }
+                }).catch(err => {
+                    this.$message.error('请求出错：' + err)
+                }).finally(() => {
+                    this.loading = false
+                })
+            },
+            refresh() {
+                this.loadData()
+            }
+        }
+    })
+</script>
+</body>
+</html>

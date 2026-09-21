@@ -22,17 +22,18 @@
 <body>
 <div id="main" class="app">
     <div class="divHead">
-        <img src="./images/user.png" @click="toUserPage"/>
+        <img src="./images/user.png" alt="用户" @click="toUserPage"/>
+        <span v-if="tableNo" class="tableBadge">{{ tableNo }}号桌</span>
     </div>
     <div class="divTitle">
         <div class="divStatic">
-            <img src="./images/logo.png" class="logo"/>
+            <img src="./images/logo.png" class="logo" alt="Logo"/>
             <div class="divDesc">
                 <div class="divName">听海餐厅</div>
                 <div class="divSend">
-                    <span><img src="./images/time.png"/> 距离1.5km</span>
-                    <span><img src="./images/money.png"/> 配送费6元</span>
-                    <span><img src="./images/location.png"/> 预计时长12min</span>
+                    <span><img src="./images/time.png" alt="时间"/> 距离1.5km</span>
+                    <span><img src="./images/money.png" alt="配送费"/> 配送费6元</span>
+                    <span><img src="./images/location.png" alt="位置"/> 预计时长12min</span>
                 </div>
             </div>
         </div>
@@ -69,7 +70,7 @@
                 <div class="divItem" v-for="(item,index) in dishList" :key="index" @click="dishDetails(item)">
                     <el-image :src="imgPathConvert(item.image)">
                         <div slot="error" class="image-slot">
-                            <img src="./images/noImg.png"/>
+                            <img src="./images/noImg.png" alt="暂无图片"/>
                         </div>
                     </el-image>
                     <div>
@@ -79,14 +80,14 @@
                         <div class="divBottom"><span>￥</span><span>{{Number(item.price).toFixed(2)}}</span></div>
                         <div class="divNum">
                             <div class="divSubtract" v-if="item.number > 0">
-                                <img src="./images/subtract.png" @click.prevent.stop="subtractCart(item)"/>
+                                <img src="./images/subtract.png" alt="减少" @click.prevent.stop="subtractCart(item)"/>
                             </div>
                             <div class="divDishNum">{{item.number}}</div>
                             <div class="divTypes" v-if="item.flavors && item.flavors.length > 0 && !item.number "
                                  @click.prevent.stop="chooseFlavorClick(item)">选择规格
                             </div>
                             <div class="divAdd" v-else>
-                                <img src="./images/add.png" @click.prevent.stop="addCart(item)"/>
+                                <img src="./images/add.png" alt="增加" @click.prevent.stop="addCart(item)"/>
                             </div>
                         </div>
                     </div>
@@ -111,8 +112,7 @@
         </div>
         <div class="divPrice"></div>
         <div :class="{btnSubmitActive: cartData && cartData.length > 0, btnSubmit:!cartData || cartData.length<1}"
-             @click="toAddOrderPage">去结算
-        </div>
+             @click="toAddOrderPage">{{ addItemsOrderId ? '确认加餐' : '去结算' }}</div>
     </div>
     <van-dialog v-model="dialogFlavor.show" :show-confirm-button="false" class="dialogFlavor" ref="flavorDialog">
         <div class="dialogTitle">{{dialogFlavor.name}}</div>
@@ -131,7 +131,7 @@
             <div @click="dialogFlavorAddCart">加入购物车</div>
         </div>
         <div class="divFlavorClose" @click="dialogFlavor.show = false">
-            <img src="./images/close.png"/>
+            <img src="./images/close.png" alt="关闭"/>
         </div>
     </van-dialog>
     <van-popup v-model="cartDialogShow" position="bottom" :style="{ height: '50%' }" class="dialogCart">
@@ -145,7 +145,7 @@
             <div v-for="item in cartData" :key="item.id" class="divCartItem">
                 <el-image :src="imgPathConvert(item.image)">
                     <div slot="error" class="image-slot">
-                        <img src="./images/noImg.png"/>
+                        <img src="./images/noImg.png" alt="暂无图片"/>
                     </div>
                 </el-image>
                 <div class="divDesc">
@@ -156,11 +156,11 @@
                 </div>
                 <div class="divNum">
                     <div class="divSubtract">
-                        <img src="./images/subtract.png" @click="cartNumberSubtract(item)"/>
+                        <img src="./images/subtract.png" alt="减少" @click="cartNumberSubtract(item)"/>
                     </div>
                     <div class="divDishNum">{{item.number}}</div>
                     <div class="divAdd">
-                        <img src="./images/add.png" @click="cartNumAdd(item)"/>
+                        <img src="./images/add.png" alt="增加" @click="cartNumAdd(item)"/>
                     </div>
                 </div>
                 <div class="divSplit"></div>
@@ -176,7 +176,7 @@
         <div class="divContainer">
             <el-image :src="imgPathConvert(detailsDialog.item.image)">
                 <div slot="error" class="image-slot">
-                    <img src="./images/noImg.png"/>
+                    <img src="./images/noImg.png" alt="暂无图片"/>
                 </div>
             </el-image>
             <div class="title">{{detailsDialog.item.name}}</div>
@@ -188,7 +188,7 @@
             </div>
             <div class="right">
                 <div class="divSubtract" v-if="detailsDialog.item.number > 0">
-                    <img src="./images/subtract.png" @click="subtractCart(detailsDialog.item)"/>
+                    <img src="./images/subtract.png" alt="减少" @click="subtractCart(detailsDialog.item)"/>
                 </div>
                 <div class="divDishNum">{{detailsDialog.item.number}}</div>
                 <div class="divTypes"
@@ -196,12 +196,12 @@
                      @click="chooseFlavorClick(detailsDialog.item)">选择规格
                 </div>
                 <div class="divAdd" v-else>
-                    <img src="./images/add.png" @click="addCart(detailsDialog.item)"/>
+                    <img src="./images/add.png" alt="增加" @click="addCart(detailsDialog.item)"/>
                 </div>
             </div>
         </div>
         <div class="detailsDialogClose" @click="detailsDialog.show = false">
-            <img src="./images/close.png"/>
+            <img src="./images/close.png" alt="关闭"/>
         </div>
     </van-dialog>
     <van-dialog v-model="setMealDialog.show"
@@ -215,7 +215,7 @@
             <div class="item" v-for="(item,index) in setMealDialog.item.list" :key="index">
                 <el-image :src="imgPathConvert(item.image)">
                     <div slot="error" class="image-slot">
-                        <img src="./images/noImg.png"/>
+                        <img src="./images/noImg.png" alt="暂无图片"/>
                     </div>
                 </el-image>
                 <div class="divSubTitle">{{item.name + '(' + item.copies + '份)' }}
@@ -232,18 +232,18 @@
             </div>
             <div class="right">
                 <div class="divSubtract" v-if="setMealDialog.item.number > 0">
-                    <img src="./images/subtract.png" @click="subtractCart(setMealDialog.item)"/>
+                    <img src="./images/subtract.png" alt="减少" @click="subtractCart(setMealDialog.item)"/>
                 </div>
                 <div class="divDishNum">{{setMealDialog.item.number}}</div>
                 <div class="divAdd" v-if="setMealDialog.item.number">
-                    <img src="./images/add.png" @click="addCart(setMealDialog.item)"/>
+                    <img src="./images/add.png" alt="增加" @click="addCart(setMealDialog.item)"/>
                 </div>
                 <div class="addCart" @click="addCart(setMealDialog.item)" v-if="!setMealDialog.item.number">加入购物车
                 </div>
             </div>
         </div>
         <div class="detailsDialogClose" @click="setMealDialog.show = false">
-            <img src="./images/close.png"/>
+            <img src="./images/close.png" alt="关闭"/>
         </div>
     </van-dialog>
 </div>
@@ -257,7 +257,7 @@
 <script src="../backend/plugins/axios/axios.min.js"></script>
 <script src="./js/request.js"></script>
 <script src="./js/common.js"></script>
-<script src="./api/main.js"></script>
+<script src="./api/main.js?v=20260920"></script>
 </body>
 <script>
     new Vue({
@@ -290,6 +290,9 @@
                 searchKeyword: '',
                 isSearching: false,
                 searchTimer: null,
+                addItemsOrderId: null, // 加餐模式下的订单ID
+                tableId: null,     //桌台ID（扫码点餐）
+                tableNo: ''        //桌号
             }
         },
         computed: {
@@ -313,6 +316,15 @@
             }
         },
         created() {
+            this.addItemsOrderId = localStorage.getItem('addItemsOrderId')
+            // 扫码点餐：从URL读取桌台参数
+            const urlParams = new URLSearchParams(window.location.search)
+            this.tableId = urlParams.get('tableId')
+            this.tableNo = urlParams.get('tableNo') || ''
+            if (this.tableId) {
+                localStorage.setItem('currentTableId', this.tableId)
+                localStorage.setItem('currentTableNo', this.tableNo)
+            }
         },
         watch: {
             'dialogFlavor.show'(flag) {
@@ -341,7 +353,7 @@
         methods: {
             //初始化数据
             initData() {
-                Promise.all([categoryListApi(), cartListApi({})]).then(res => {
+                Promise.all([categoryListApi(), cartListApi({tableId: this.tableId || undefined})]).then(res => {
                     //获取分类数据
                     if (res[0].code === 1) {
                         this.categoryList = res[0].data
@@ -474,7 +486,8 @@
             },
             //获取购物车数据
             async getCartData() {
-                const res = await cartListApi({})
+                const tableId = this.tableId || localStorage.getItem('currentTableId')
+                const res = await cartListApi({tableId: tableId || undefined})
                 if (res.code === 1) {
                     this.cartData = res.data
                 } else {
@@ -496,7 +509,8 @@
                 } else {//表示套餐 套餐没有口味
                     params.setmealId = item.id
                 }
-                const res = await addCartApi(params)
+                const tableId = this.tableId || localStorage.getItem('currentTableId')
+                const res = await addCartApi(params, tableId || undefined)
                 if (res.code === 1) {
                     this.dishList.forEach(dish => {
                         if (dish.id === item.id) {
@@ -522,7 +536,8 @@
                         setmealId: item.id,
                     }
                 }
-                const res = await updateCartApi(params)
+                const tableId = this.tableId || localStorage.getItem('currentTableId')
+                const res = await updateCartApi(params, tableId || undefined)
                 if (res.code === 1) {
                     this.dishList.forEach(dish => {
                         if (dish.id === item.id) {
@@ -554,7 +569,8 @@
                     name: item.name,
                     image: item.image
                 }
-                const res = await addCartApi(params)
+                const tableId = this.tableId || localStorage.getItem('currentTableId')
+                const res = await addCartApi(params, tableId || undefined)
                 if (res.code === 1) {
                     this.dishList.forEach(dish => {
                         if (dish.id === (item.dishId || item.setmealId)) {
@@ -573,7 +589,8 @@
                     dishId: item.dishId,
                     setmealId: item.setmealId,
                 }
-                const res = await updateCartApi(params)
+                const tableId = this.tableId || localStorage.getItem('currentTableId')
+                const res = await updateCartApi(params, tableId || undefined)
                 if (res.code === 1) {
                     this.dishList.forEach(dish => {
                         if (dish.id === (item.dishId || item.setmealId)) {
@@ -597,7 +614,8 @@
 
             //清空购物车
             async clearCart() {
-                const res = await clearCartApi()
+                const tableId = this.tableId || localStorage.getItem('currentTableId')
+                const res = await clearCartApi(tableId || undefined)
                 if (res.code === 1) {
                     for (let ele of this.dishList) {
                         ele.number = undefined
@@ -665,8 +683,11 @@
             //跳转到去结算界面
             toAddOrderPage() {
                 if (this.cartData.length > 0) {
+                    const url = this.addItemsOrderId
+                        ? '/front/page/add-order.html?addItemsOrderId=' + this.addItemsOrderId
+                        : '/front/page/add-order.html' + (this.tableId ? '?tableId=' + this.tableId + '&tableNo=' + encodeURIComponent(this.tableNo) : '')
                     window.requestAnimationFrame(() => {
-                        window.location.href = '/front/page/add-order.html'
+                        window.location.href = url
                     })
                 }
             },

@@ -60,7 +60,7 @@
             :src="getImage(row.image)" 
             :preview-src-list="[ `/common/download?name=${row.image}` ]" >
             <div slot="error" class="image-slot">
-              <img src="./../../images/noImg.png"  style="width: auto; height: 40px; border:none;" >
+              <img src="./../../images/noImg.png"  style="width: auto; height: 40px; border:none;" alt="菜品图片">
             </div>  
           </el-image>
           </template>
@@ -76,7 +76,9 @@
         </el-table-column>
         <el-table-column label="售卖状态">
           <template slot-scope="scope">
-            <span style="margin-right: 10px;">{{ scope.row.status == '0' ? '停售' : '启售' }}</span>
+            <span v-if="scope.row.status == '0'" style="margin-right: 10px; color: #999;">停售</span>
+            <span v-else-if="scope.row.status == '2'" style="margin-right: 10px; color: #E6A23C;">估清</span>
+            <span v-else style="margin-right: 10px; color: #67C23A;">启售</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -86,7 +88,7 @@
         </el-table-column>
         <el-table-column
           label="操作"
-          width="160"
+          width="250"
           align="center"
         >
           <template slot-scope="scope">
@@ -103,8 +105,27 @@
               size="small"
               class="blueBug"
               @click="statusHandle(scope.row)"
+              v-if="scope.row.status != '2'"
             >
               {{ scope.row.status == '0' ? '启售' : '停售' }}
+            </el-button>
+            <el-button
+              type="text"
+              size="small"
+              class="blueBug"
+              @click="soldOutHandle(scope.row.id)"
+              v-if="scope.row.status == '1'"
+            >
+              估清
+            </el-button>
+            <el-button
+              type="text"
+              size="small"
+              class="delBut"
+              @click="resumeHandle(scope.row.id)"
+              v-if="scope.row.status == '2'"
+            >
+              恢复
             </el-button>
             <el-button
               type="text"
@@ -262,6 +283,36 @@
               checkArr.push(n.id)
             })
             this.checkList = checkArr
+          },
+          soldOutHandle (id) {
+            this.$confirm('确认设为估清？设为估清后C端将显示"已售罄"', '提示', {
+              'confirmButtonText': '确定',
+              'cancelButtonText': '取消',
+              'type': 'warning'
+            }).then(() => {
+              dishSoldOut(id).then(res => {
+                if (res.code === 1) {
+                  this.$message.success('已设为估清')
+                  this.handleQuery()
+                } else {
+                  this.$message.error(res.msg || '操作失败')
+                }
+              }).catch(err => {
+                this.$message.error('请求出错了：' + err)
+              })
+            })
+          },
+          resumeHandle (id) {
+            dishResume(id).then(res => {
+              if (res.code === 1) {
+                this.$message.success('已恢复启售')
+                this.handleQuery()
+              } else {
+                this.$message.error(res.msg || '操作失败')
+              }
+            }).catch(err => {
+              this.$message.error('请求出错了：' + err)
+            })
           },
           handleSizeChange (val) {
             this.pageSize = val

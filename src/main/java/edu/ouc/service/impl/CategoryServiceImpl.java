@@ -56,6 +56,7 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
     // 根据id删除分类，删除之前判断分类下是否有关联的菜品或套餐
     @Override
     public Boolean remove(Long id) {
+        log.info("删除分类: id={}", id);
 
         // 1.查询当前分类是否关联了菜品，如果已经关联，则抛出一个业务异常
 

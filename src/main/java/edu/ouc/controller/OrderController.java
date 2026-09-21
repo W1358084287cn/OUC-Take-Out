@@ -7,7 +7,11 @@ import edu.ouc.entity.Orders;
 import edu.ouc.service.impl.OrderServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * Author: Sihang Xie
@@ -23,9 +27,13 @@ import org.springframework.web.bind.annotation.*;
 public class OrderController {
     private final OrderServiceImpl orderService;
 
+    @Value("${reggie.order-retention-days:90}")
+    private int retentionDays;
+
     // 提交(添加)订单，返回订单对象(含订单号、金额)
     @PostMapping("/submit")
     public R<Orders> submit(@RequestBody Orders orders) {
+        log.info("下单请求: addressBookId={}, payMethod={}, remark={}", orders.getAddressBookId(), orders.getPayMethod(), orders.getRemark());
         Orders order = orderService.submit(orders);
         if (order != null) {
             return R.success(order);
@@ -33,9 +41,10 @@ public class OrderController {
         return R.error("下单失败");
     }
 
-    // 用户支付：更新订单状态为待派送，记录支付方式和支付时间
+    // 用户支付：更新订单状态为制作中，记录支付方式和支付时间
     @PostMapping("/pay")
     public R<String> pay(@RequestBody Orders orders) {
+        log.info("支付请求: orderId={}, payMethod={}", orders.getId(), orders.getPayMethod());
         if (orderService.pay(orders.getId(), orders.getPayMethod())) {
             return R.success("支付成功");
         }
@@ -63,6 +72,7 @@ public class OrderController {
     // 根据ID查询单个订单详情
     @GetMapping("/detail/{id}")
     public R<Orders> getById(@PathVariable Long id) {
+        log.info("查询订单详情: id={}", id);
         Orders order = orderService.getOrderById(id);
         if (order != null) {
             return R.success(order);
@@ -73,9 +83,65 @@ public class OrderController {
     // 修改订单状态
     @PutMapping
     public R<String> update(@RequestBody Orders order) {
+        log.info("修改订单状态请求: id={}, status={}", order.getId(), order.getStatus());
         if (orderService.update(order)) {
             return R.success("修改成功");
         }
         return R.error("修改失败");
+    }
+
+    // 退款
+    @PostMapping("/refund")
+    public R<String> refund(@RequestBody Orders orders) {
+        log.info("退款请求: orderId={}, reason={}", orders.getId(), orders.getRemark());
+        if (orderService.refund(orders.getId(), orders.getRemark())) {
+            return R.success("退款成功");
+        }
+        return R.error("退款失败");
+    }
+
+    // 加餐
+    @PostMapping("/addItems")
+    public R<String> addItems(@RequestBody Orders orders) {
+        log.info("加餐请求: orderId={}", orders.getId());
+        if (orderService.addItems(orders.getId())) {
+            return R.success("加餐成功");
+        }
+        return R.error("加餐失败");
+    }
+
+    // 批量删除订单
+    @DeleteMapping("/batch")
+    public R<String> batchDelete(@RequestBody Map<String, List<Long>> params) {
+        List<Long> ids = params.get("ids");
+        log.info("批量删除订单: ids={}", ids);
+        int count = orderService.batchDelete(ids);
+        return R.success("成功删除" + count + "笔订单");
+    }
+
+    // 删除单个订单
+    @DeleteMapping("/{id}")
+    public R<String> deleteById(@PathVariable Long id) {
+        log.info("删除单个订单: id={}", id);
+        int count = orderService.deleteById(id);
+        return R.success("删除成功");
+    }
+
+    // 手动清理历史订单（参数：保留天数）
+    @PostMapping("/clean")
+    public R<String> cleanOldOrders(@RequestBody Map<String, Integer> params) {
+        Integer days = params.get("days");
+        log.info("清理历史订单请求: days={}", days);
+        if (days == null || days <= 0) {
+            return R.error("保留天数必须大于0");
+        }
+        int count = orderService.cleanOldOrders(days);
+        return R.success("成功清理" + count + "笔历史订单");
+    }
+
+    // 获取订单保留天数配置
+    @GetMapping("/retention-days")
+    public R<Integer> getRetentionDays() {
+        return R.success(retentionDays);
     }
 }

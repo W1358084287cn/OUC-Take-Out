@@ -42,6 +42,7 @@ public class UserController {
     // 发送邮箱验证码
     @PostMapping("/sendMsg")
     public R<String> sendMsg(@RequestBody User user, HttpSession session) throws MessagingException {
+        log.info("发送验证码请求: email={}", user.getEmail());
         if (userService.sendMsg(user, session)) {
             return R.success("验证码发送成功");
         }
@@ -51,6 +52,7 @@ public class UserController {
     // 移动端用户登录登录
     @PostMapping("/login")
     public R<User> login(@RequestBody Map<String, String> map, HttpSession session, HttpServletResponse response) {
+        log.info("用户登录请求: email={}", map.get("email"));
         User user = userService.login(map, session);
 
         // 如果前端勾选了"30天内保持登录"，生成Token写入Cookie

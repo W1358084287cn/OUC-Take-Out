@@ -84,8 +84,7 @@
         </div>
         <div class="divPrice"></div>
         <div :class="{btnSubmitActive: cartData && cartData.length > 0, btnSubmit:!cartData || cartData.length<1}"
-             @click="goToPaySuccess">去支付
-        </div>
+             @click="goToPaySuccess">{{ addItemsOrderId ? '确认加餐' : '去支付' }}</div>
     </div>
 </div>
 <!-- 开发环境版本，包含了有帮助的命令行警告 -->
@@ -99,8 +98,8 @@
 <script src="../../backend/plugins/axios/axios.min.js"></script>
 <script src="./../js/request.js"></script>
 <script src="./../js/common.js"></script>
-<script src="./../api/main.js"></script>
-<script src="./../api/order.js"></script>
+<script src="./../api/main.js?v=20260920"></script>
+<script src="./../api/order.js?v=20260920"></script>
 <script>
     new Vue({
         el: "#add_order",
@@ -115,7 +114,10 @@
                 },
                 finishTime: '',//送达时间
                 cartData: [],
-                note: ''//备注信息
+                note: '',//备注信息
+                addItemsOrderId: null,//加餐模式订单ID
+                tableId: null,     //桌台ID
+                tableNo: ''        //桌号
             }
         },
         computed: {
@@ -139,12 +141,27 @@
             }
         },
         created() {
+            // 读取加餐模式订单ID
+            const urlParams = new URLSearchParams(window.location.search)
+            this.addItemsOrderId = urlParams.get('addItemsOrderId')
+            this.tableId = urlParams.get('tableId')
+            this.tableNo = urlParams.get('tableNo') || ''
+            if (this.addItemsOrderId) {
+                localStorage.setItem('addItemsOrderId', this.addItemsOrderId)
+            } else {
+                // 非加餐模式进入时，清理残留的加餐状态
+                localStorage.removeItem('addItemsOrderId')
+            }
             this.initData()
         },
         mounted() {
         },
         methods: {
             goBack() {
+                // 退出加餐模式时清理残留状态
+                if (this.addItemsOrderId) {
+                    localStorage.removeItem('addItemsOrderId')
+                }
                 history.go(-1)
             },
             initData() {
@@ -185,7 +202,8 @@
             },
             //获取购物车数据
             async getCartData() {
-                const res = await cartListApi({})
+                const tableId = this.tableId || localStorage.getItem('currentTableId')
+                const res = await cartListApi({tableId: tableId || undefined})
                 if (res.code === 1) {
                     this.cartData = res.data
                 } else {
@@ -193,11 +211,28 @@
                 }
             },
             async goToPaySuccess() {
+                if (this.addItemsOrderId) {
+                    // 加餐模式：调用加餐接口
+                    const res = await addItemsApi({id: this.addItemsOrderId})
+                    if (res.code === 1) {
+                        localStorage.removeItem('addItemsOrderId')
+                        this.$notify({type: 'success', message: '加餐成功'});
+                        window.requestAnimationFrame(() => {
+                            window.location.href = '/front/page/order.html'
+                        })
+                    } else {
+                        this.$notify({type: 'warning', message: res.msg});
+                    }
+                    return
+                }
                 const params = {
                     remark: this.note,
                     payMethod: 1,
-                    addressBookId: this.address.id
+                    addressBookId: this.address.id,
+                    tableId: this.tableId
                 }
+                // 正常下单时清理加餐残留标记
+                localStorage.removeItem('addItemsOrderId')
                 const res = await addOrderApi(params)
                 if (res.code === 1) {
                     // 下单成功后携带订单信息跳转到支付页面

@@ -1,24 +1,19 @@
 package edu.ouc.service;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * @Author: Sihang Xie
- * @Description: 员工employee的创建服务层接口实现类测试
- * @Date: 2022/9/29 14:32
- * @Version: 0.0.1
- * @Modified By:
+ * 员工employee的创建服务层接口实现类测试
+ *
+ * @author Sihang Xie
+ * @version 0.0.1
  */
 @SpringBootTest
 public class IEmployeeServiceTest {
 
-    @Autowired
-    private IEmployeeService employeeService;
-
     @Test
     void testCheck() {
-
+        // TODO: 补充员工校验测试逻辑
     }
 }

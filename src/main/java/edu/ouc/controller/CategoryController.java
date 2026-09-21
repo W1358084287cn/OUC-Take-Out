@@ -29,6 +29,7 @@ public class CategoryController {
     // 新增分类
     @PostMapping
     public R<String> save(@RequestBody Category category) {
+        log.info("新增分类: name={}, type={}, sort={}", category.getName(), category.getType(), category.getSort());
         if (categoryService.save(category)) {
             return R.success("添加成功");
         }
@@ -45,6 +46,7 @@ public class CategoryController {
     // 根据id删除分类，删除之前判断分类下是否有关联的菜品或套餐
     @DeleteMapping
     public R<String> deleteById(Long ids) {
+        log.info("删除分类: id={}", ids);
         if (categoryService.remove(ids)) {
             return R.success("删除成功");
         }
@@ -54,6 +56,7 @@ public class CategoryController {
     // 修改分类
     @PutMapping
     public R<String> update(@RequestBody Category category) {
+        log.info("修改分类: id={}, name={}", category.getId(), category.getName());
         if (categoryService.updateById(category)) {
             return R.success("修改成功");
         }

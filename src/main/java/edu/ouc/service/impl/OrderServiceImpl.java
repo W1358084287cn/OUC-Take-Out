@@ -65,7 +65,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         }
 
 
-        // 3.调用地址簿AddressBook业务层获取当前派送的地址信息
+        // 3.调用地址簿AddressBook业务层获取当前下单的地址信息
         AddressBook addressBook = addressBookService.getById(orders.getAddressBookId());
         // 如果地址信息为空，则抛出业务异常
         if (addressBook == null) {
@@ -107,7 +107,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         orders.setNumber(String.valueOf(orderId));
         // 设置下单用户ID
         orders.setUserId(userId);
-        // 设置订单状态为待付款(支付完成后再改为待派送)
+        // 设置订单状态为待付款(支付完成后再改为制作中)
         orders.setStatus(1);
         // 设置商品总金额
         orders.setAmount(amount.get());
@@ -143,7 +143,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         return this.getById(id);
     }
 
-    // 用户支付，更新订单状态为待派送
+    // 用户支付，更新订单状态为制作中
     @Override
     @Transactional
     public Boolean pay(Long orderId, Integer payMethod) {
@@ -156,7 +156,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         if (order.getStatus() != 1) {
             throw new CustomException("订单状态异常，无法支付");
         }
-        // 3.更新订单状态为待派送、支付方式、支付时间
+        // 3.更新订单状态为制作中、支付方式、支付时间
         order.setStatus(2);
         order.setPayMethod(payMethod);
         order.setCheckoutTime(LocalDateTime.now());
@@ -262,11 +262,144 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         return result;
     }
 
-    // 获取待处理订单数量（status=2待派送 + status=3已派送）
+    // 获取待处理订单数量（status=2制作中）
     @Override
     public Integer getNewOrderCount() {
         LambdaQueryWrapper<Orders> lqw = new LambdaQueryWrapper<>();
-        lqw.in(Orders::getStatus, 2, 3);
+        lqw.in(Orders::getStatus, 2);
         return Math.toIntExact(this.count(lqw));
+    }
+
+    // 退款
+    @Override
+    @Transactional
+    public Boolean refund(Long orderId, String reason) {
+        if (orderId == null) {
+            throw new CustomException("订单ID不能为空");
+        }
+        Orders order = this.getById(orderId);
+        if (order == null) {
+            throw new CustomException("订单不存在");
+        }
+        Integer status = order.getStatus();
+        if (status != 1 && status != 2) {
+            throw new CustomException("仅待付款或制作中的订单可退款");
+        }
+        // 更新订单状态为已退款
+        order.setStatus(6);
+        boolean updated = this.updateById(order);
+        log.info("订单退款成功: orderId={}, orderNumber={}, reason={}", orderId, order.getNumber(), reason);
+        return updated;
+    }
+
+    // 加餐(追加菜品)
+    @Override
+    @Transactional
+    public Boolean addItems(Long orderId) {
+        if (orderId == null) {
+            throw new CustomException("订单ID不能为空");
+        }
+        Orders order = this.getById(orderId);
+        if (order == null) {
+            throw new CustomException("订单不存在");
+        }
+        if (order.getStatus() != 2) {
+            throw new CustomException("仅制作中的订单可加餐");
+        }
+        Long userId = BaseContext.getCurrentUserId();
+        // 查询当前用户购物车
+        LambdaQueryWrapper<ShoppingCart> cartLqw = new LambdaQueryWrapper<>();
+        cartLqw.eq(ShoppingCart::getUserId, userId);
+        List<ShoppingCart> cartItems = shoppingCartService.list(cartLqw);
+        if (cartItems.isEmpty()) {
+            throw new CustomException("购物车为空，无法加餐");
+        }
+        // 将购物车项目转为订单明细
+        List<OrderDetail> orderDetails = cartItems.stream().map(item -> {
+            OrderDetail detail = new OrderDetail();
+            detail.setOrderId(orderId);
+            detail.setNumber(item.getNumber());
+            detail.setDishFlavor(item.getDishFlavor());
+            detail.setDishId(item.getDishId());
+            detail.setSetmealId(item.getSetmealId());
+            detail.setName(item.getName());
+            detail.setImage(item.getImage());
+            detail.setAmount(item.getAmount());
+            return detail;
+        }).collect(Collectors.toList());
+        // 批量新增订单明细
+        orderDetailService.saveBatch(orderDetails);
+        // 累加订单金额
+        BigDecimal addAmount = cartItems.stream()
+                .map(item -> item.getAmount().multiply(new BigDecimal(item.getNumber())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        order.setAmount(order.getAmount().add(addAmount));
+        this.updateById(order);
+        // 清空购物车
+        shoppingCartService.remove(cartLqw);
+        log.info("加餐成功: orderId={}, 新增{}件商品, 追加金额={}", orderId, cartItems.size(), addAmount);
+        return true;
+    }
+
+    // 批量删除订单及关联明细
+    @Override
+    @Transactional
+    public int batchDelete(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new CustomException("请选择要删除的订单");
+        }
+        // 1.先删除订单明细（子表）
+        LambdaQueryWrapper<OrderDetail> detailLqw = new LambdaQueryWrapper<>();
+        detailLqw.in(OrderDetail::getOrderId, ids);
+        long detailDeleted = orderDetailService.count(detailLqw);
+        orderDetailService.remove(detailLqw);
+        // 2.再删除订单（主表）
+        int orderDeleted = this.getBaseMapper().deleteBatchIds(ids);
+        log.info("批量删除订单: 订单{}笔, 明细{}条", orderDeleted, detailDeleted);
+        return orderDeleted;
+    }
+
+    // 删除单个订单及关联明细
+    @Override
+    @Transactional
+    public int deleteById(Long id) {
+        if (id == null) {
+            throw new CustomException("订单ID不能为空");
+        }
+        // 1.先删除订单明细（子表）
+        LambdaQueryWrapper<OrderDetail> detailLqw = new LambdaQueryWrapper<>();
+        detailLqw.eq(OrderDetail::getOrderId, id);
+        orderDetailService.remove(detailLqw);
+        // 2.再删除订单（主表）
+        int deleted = this.getBaseMapper().deleteById(id);
+        log.info("删除单个订单: id={}, result={}", id, deleted);
+        return deleted;
+    }
+
+    // 清理超过指定天数的历史订单及关联明细
+    @Override
+    @Transactional
+    public int cleanOldOrders(int retentionDays) {
+        // 计算截止时间：当前时间向前推retentionDays天
+        LocalDateTime cutoffTime = LocalDateTime.now().minusDays(retentionDays);
+        log.info("清理历史订单: 保留{}天，截止时间={}", retentionDays, cutoffTime);
+        // 1.查询符合条件的订单ID
+        LambdaQueryWrapper<Orders> orderLqw = new LambdaQueryWrapper<>();
+        orderLqw.lt(Orders::getOrderTime, cutoffTime);
+        List<Orders> oldOrders = this.list(orderLqw);
+        if (oldOrders.isEmpty()) {
+            log.info("没有需要清理的历史订单");
+            return 0;
+        }
+        List<Long> orderIds = oldOrders.stream().map(Orders::getId).collect(Collectors.toList());
+        // 2.先删除订单明细（子表）
+        LambdaQueryWrapper<OrderDetail> detailLqw = new LambdaQueryWrapper<>();
+        detailLqw.in(OrderDetail::getOrderId, orderIds);
+        long detailDeleted = orderDetailService.count(detailLqw);
+        orderDetailService.remove(detailLqw);
+        // 3.再删除订单（主表）
+        int orderDeleted = this.getBaseMapper().deleteBatchIds(orderIds);
+        log.info("历史订单清理完成: 订单{}笔, 明细{}条", orderDeleted, detailDeleted);
+        return orderDeleted;
     }
 }

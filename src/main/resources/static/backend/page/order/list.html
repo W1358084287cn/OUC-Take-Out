@@ -18,6 +18,12 @@
             justify-content: flex-start !important;
         }
 
+        .toolbar {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
         .info-box {
             margin: -15px -44px 20px;
         }
@@ -45,6 +51,12 @@
             flex: 1;
             color: #333333;
         }
+
+        .clean-tip {
+            font-size: 13px;
+            color: #999;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -68,7 +80,18 @@
             ></el-date-picker>
             <el-button type="primary" class="search-btn" @click="init">查询</el-button>
         </div>
-        <el-table :data="tableData" stripe class="tableBox">
+        <!-- 操作工具栏 -->
+        <div class="toolbar">
+            <el-button type="danger" @click="batchDeleteHandle" :disabled="!multipleSelection.length"
+                       icon="el-icon-delete">批量删除
+            </el-button>
+            <el-button type="warning" @click="openCleanDialog" icon="el-icon-delete-solid">清理历史订单</el-button>
+            <span v-if="multipleSelection.length" style="margin-left: 10px;color: #606266;">
+                已选 {{ multipleSelection.length }} 笔订单
+            </span>
+        </div>
+        <el-table :data="tableData" stripe class="tableBox" @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="45"></el-table-column>
             <el-table-column prop="number" label="订单号" min-width="110"></el-table-column>
             <el-table-column prop="订单状态" label="订单状态">
                 <template slot-scope="{ row }">
@@ -84,7 +107,7 @@
                     <span>￥{{ row.amount }}</span>
                 </template>
             </el-table-column>
-            <el-table-column prop="btn" label="操作">
+            <el-table-column prop="btn" label="操作" min-width="140">
                 <template slot-scope="{ row }">
                     <el-button type="text" @click="goDetail(row)" class="blueBug">
                         查看
@@ -92,12 +115,16 @@
                     <el-divider v-if="row.status === 2" direction="vertical"></el-divider>
                     <el-button v-if="row.status === 2" type="text" @click="cancelOrDeliveryOrComplete(3, row.id)"
                                class="blueBug">
-                        派送
-                    </el-button>
-                    <el-divider v-if="row.status === 3" direction="vertical"></el-divider>
-                    <el-button v-if="row.status === 3" type="text" @click="cancelOrDeliveryOrComplete(4, row.id)"
-                               class="blueBug">
                         完成
+                    </el-button>
+                    <el-divider v-if="row.status === 2" direction="vertical"></el-divider>
+                    <el-button v-if="row.status === 2" type="text" @click="refundHandle(row)"
+                               class="delBut">
+                        退款
+                    </el-button>
+                    <el-divider direction="vertical"></el-divider>
+                    <el-button type="text" @click="deleteHandle(row)" class="delBut">
+                        删除
                     </el-button>
                 </template>
             </el-table-column>
@@ -151,32 +178,27 @@
                 <span class="des">{{ diaForm.orderTime }}</span>
             </div>
         </div>
-        <!-- <el-form ref="diaForm" :model="diaForm" class="dia-form">
-          <el-form-item label="订单号">
-            <span>{{ diaForm.number }}</span>
-          </el-form-item>
-          <el-form-item label="订单状态">
-            <span>{{ getOrderType(diaForm) }}</span>
-          </el-form-item>
-          <el-form-item label="收货人">
-            <span>{{ diaForm.consignee }}</span>
-          </el-form-item>
-          <el-form-item label="联系电话">
-            <span>{{ diaForm.phone }}</span>
-          </el-form-item>
-          <el-form-item label="地址">
-            <span>{{ diaForm.address }}</span>
-          </el-form-item>
-          <el-form-item label="支付金额">
-            <span>{{ diaForm.amount }}</span>
-          </el-form-item>
-          <el-form-item label="下单时间">
-            <span>{{ diaForm.orderTime }}</span>
-          </el-form-item>
+    </el-dialog>
+
+    <!-- 清理历史订单弹框 -->
+    <el-dialog
+            title="清理历史订单"
+            :visible.sync="cleanDialogVisible"
+            width="400px"
+            :before-close="handleCleanClose"
+    >
+        <el-form label-width="100px">
+            <el-form-item label="保留天数">
+                <el-input-number v-model="cleanDays" :min="1" :max="3650" :step="1"></el-input-number>
+            </el-form-item>
         </el-form>
+        <div class="clean-tip">
+            将删除 {{ cleanDays }} 天之前的所有历史订单及明细，不可恢复，请谨慎操作。
+        </div>
         <span slot="footer" class="dialog-footer">
-          <el-button type="primary" @click="dialogVisible = false">确 定</el-button>
-        </span> -->
+            <el-button @click="cleanDialogVisible = false">取消</el-button>
+            <el-button type="warning" @click="cleanOrderHandle">确定清理</el-button>
+        </span>
     </el-dialog>
 </div>
 <!-- 开发环境版本，包含了有帮助的命令行警告 -->
@@ -185,8 +207,8 @@
 <script src="../../plugins/element-ui/index.js"></script>
 <!-- 引入axios -->
 <script src="../../plugins/axios/axios.min.js"></script>
-<script src="../../js/request.js?v=20260919"></script>
-<script src="../../api/order.js?v=20260919"></script>
+<script src="../../js/request.js?v=20260920"></script>
+<script src="../../api/order.js?v=20260920"></script>
 <script>
     new Vue({
         el: '#orders-app',
@@ -202,7 +224,12 @@
                 tableData: [],
                 dialogVisible: false,
                 diaForm: {},
-                loading: false
+                loading: false,
+                // 多选
+                multipleSelection: [],
+                // 清理弹框
+                cleanDialogVisible: false,
+                cleanDays: 90
             }
         },
         computed: {},
@@ -219,6 +246,8 @@
         },
         created() {
             this.init()
+            // 加载配置的保留天数
+            this.loadRetentionDays()
         },
         mounted() {
             // this.loading = false
@@ -240,6 +269,14 @@
                     this.$message.error('请求出错了：' + err)
                 })
             },
+            // 加载保留天数配置
+            loadRetentionDays() {
+                getOrderRetentionDays().then(res => {
+                    if (res.code === 1) {
+                        this.cleanDays = res.data || 90
+                    }
+                }).catch(() => {})
+            },
             handleQuery() {
                 this.page = 1;
                 this.init();
@@ -251,10 +288,10 @@
                         str = '待付款'
                         break;
                     case 2:
-                        str = '正在派送'
+                        str = '制作中'
                         break;
                     case 3:
-                        str = '已派送'
+                        str = '已完成'
                         break;
                     case 4:
                         str = '已完成'
@@ -262,9 +299,87 @@
                     case 5:
                         str = '已取消'
                         break;
+                    case 6:
+                        str = '已退款'
+                        break;
 
                 }
                 return str
+            },
+            // 多选变化
+            handleSelectionChange(val) {
+                this.multipleSelection = val
+            },
+            // 批量删除
+            batchDeleteHandle() {
+                if (!this.multipleSelection.length) {
+                    this.$message.warning('请选择要删除的订单')
+                    return
+                }
+                const ids = this.multipleSelection.map(item => item.id)
+                this.$confirm('确认删除选中的 ' + ids.length + ' 笔订单吗？删除后不可恢复', '批量删除', {
+                    confirmButtonText: '确定删除',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    batchDeleteOrders(ids).then(res => {
+                        if (res.code === 1) {
+                            this.$message.success(res.msg || '批量删除成功')
+                            this.multipleSelection = []
+                            this.init()
+                        } else {
+                            this.$message.error(res.msg || '批量删除失败')
+                        }
+                    }).catch(err => {
+                        this.$message.error('请求出错了：' + err)
+                    })
+                }).catch(() => {})
+            },
+            // 删除单个订单
+            deleteHandle(row) {
+                this.$confirm('确认删除订单【' + row.number + '】吗？删除后不可恢复', '删除订单', {
+                    confirmButtonText: '确定删除',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    deleteOrderById(row.id).then(res => {
+                        if (res.code === 1) {
+                            this.$message.success('删除成功')
+                            this.init()
+                        } else {
+                            this.$message.error(res.msg || '删除失败')
+                        }
+                    }).catch(err => {
+                        this.$message.error('请求出错了：' + err)
+                    })
+                }).catch(() => {})
+            },
+            // 打开清理弹框
+            openCleanDialog() {
+                this.cleanDialogVisible = true
+            },
+            handleCleanClose() {
+                this.cleanDialogVisible = false
+            },
+            // 执行清理
+            cleanOrderHandle() {
+                this.$confirm('确认删除 ' + this.cleanDays + ' 天之前的所有订单吗？此操作不可恢复！', '清理历史订单', {
+                    confirmButtonText: '确定清理',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    cleanOldOrders(this.cleanDays).then(res => {
+                        if (res.code === 1) {
+                            this.$message.success(res.msg || '清理完成')
+                            this.cleanDialogVisible = false
+                            this.init()
+                        } else {
+                            this.$message.error(res.msg || '清理失败')
+                        }
+                    }).catch(err => {
+                        this.$message.error('请求出错了：' + err)
+                    })
+                }).catch(() => {})
             },
             // 查看详情
             goDetail(row) {
@@ -272,7 +387,7 @@
                 this.dialogVisible = true
                 this.diaForm = {...row}
             },
-            // 取消，派送，完成
+            // 取消，完成
             cancelOrDeliveryOrComplete(status, id) {
                 const params = {
                     status,
@@ -285,7 +400,7 @@
                 }).then(() => {
                     editOrderDetail(params).then(res => {
                         if (res.code === 1) {
-                            this.$message.success(status === 3 ? '订单已派送' : '订单已完成')
+                            this.$message.success('订单制作完成')
                             this.init()
                         } else {
                             this.$message.error(res.msg || '操作失败')
@@ -296,6 +411,24 @@
                 }).catch(() => {
                     // 用户点击取消，不执行任何操作
                 })
+            },
+            refundHandle(row) {
+                this.$confirm('确认退款该订单吗？退款后不可恢复', '确定退款', {
+                    'confirmButtonText': '确定退款',
+                    'cancelButtonText': '取消',
+                    'type': 'warning'
+                }).then(() => {
+                    refundOrder({id: row.id, remark: '后台退款'}).then(res => {
+                        if (res.code === 1) {
+                            this.$message.success('退款成功')
+                            this.init()
+                        } else {
+                            this.$message.error(res.msg || '退款失败')
+                        }
+                    }).catch(err => {
+                        this.$message.error('请求出错了：' + err)
+                    })
+                }).catch(() => {})
             },
             handleClose() {
                 this.dialogVisible = false

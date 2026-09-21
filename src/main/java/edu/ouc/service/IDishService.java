@@ -36,4 +36,10 @@ public interface IDishService extends IService<Dish> {
 
     // 根据指定过滤条件查询菜品，支持按名称模糊搜索
     List<DishDto> listWithFlavor(Dish dish, String name);
+
+    // 设为估清(售罄)
+    Boolean soldOut(Long id);
+
+    // 恢复启售
+    Boolean resume(Long id);
 }

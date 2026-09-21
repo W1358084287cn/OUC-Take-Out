@@ -21,6 +21,18 @@
     height: 28rem;
 }
 
+#main .divHead .tableBadge {
+    position: absolute;
+    left: 60rem;
+    top: 41rem;
+    font-size: 14rem;
+    color: #fff;
+    background: rgba(0,0,0,0.4);
+    padding: 2rem 10rem;
+    border-radius: 10rem;
+    line-height: 24rem;
+}
+
 #main .divTitle {
     width: 345rem;
     margin: -75rem auto 0;

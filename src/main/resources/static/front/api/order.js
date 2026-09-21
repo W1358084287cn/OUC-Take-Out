@@ -41,3 +41,12 @@ function orderAgainApi(data) {
       data
   })
 }
+
+//加餐
+function addItemsApi(data) {
+  return $axios({
+      'url': '/order/addItems',
+      'method': 'post',
+      data
+  })
+}

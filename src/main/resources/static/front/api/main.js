@@ -34,28 +34,34 @@ function cartListApi(data) {
 }
 
 //购物车中添加商品
-function addCartApi(data) {
+function addCartApi(data, tableId) {
+    const params = tableId ? { tableId } : {}
     return $axios({
         'url': '/shoppingCart/add',
         'method': 'post',
-        data
+        data,
+        params
     })
 }
 
 //购物车中修改商品
-function updateCartApi(data) {
+function updateCartApi(data, tableId) {
+    const params = tableId ? { tableId } : {}
     return $axios({
         'url': '/shoppingCart/sub',
         'method': 'post',
-        data
+        data,
+        params
     })
 }
 
 //删除购物车的商品
-function clearCartApi() {
+function clearCartApi(tableId) {
+    const params = tableId ? { tableId } : {}
     return $axios({
         'url': '/shoppingCart/clean',
         'method': 'delete',
+        params
     })
 }
 
@@ -66,5 +72,3 @@ function setMealDishDetailsApi(id) {
         'method': 'get',
     })
 }
-
-

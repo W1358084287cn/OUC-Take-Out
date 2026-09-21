@@ -60,7 +60,7 @@
                 <span>共{{order[0].sumNum || 0}} 件商品,实付</span>
                 <span class="price">￥{{Number(order[0].amount || 0).toFixed(2)}}</span>
             </div>
-            <div class="btn" v-if="order[0].status === 4">
+            <div class="btn" v-if="order[0].status === 3">
                 <div class="btnAgain" @click="addOrderAgain">再来一单</div>
             </div>
         </div>
@@ -107,7 +107,7 @@
                 msgFlag: false,
                 order: [{
                     orderTime: '',//下单时间
-                    status: undefined,//订单状态 1已结账，2未结账，3已退单，4已完成，5已取消
+                    status: undefined,//订单状态 1待付款，2制作中，3已完成，5已取消
                     orderDetails: [{
                         name: '',//菜品名称
                         number: undefined,//数量
@@ -181,10 +181,10 @@
                         str = '待付款'
                         break;
                     case 2:
-                        str = '正在派送'
+                        str = '制作中'
                         break;
                     case 3:
-                        str = '已派送'
+                        str = '已完成'
                         break;
                     case 4:
                         str = '已完成'

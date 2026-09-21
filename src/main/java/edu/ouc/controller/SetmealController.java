@@ -7,7 +7,7 @@ import edu.ouc.entity.Setmeal;
 import edu.ouc.service.ISetmealService;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
-import org.apache.logging.log4j.util.Strings;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,6 +32,7 @@ public class SetmealController {
     // 保存新套餐，同时插入套餐对应菜品
     @PostMapping
     public R<String> save(@RequestBody SetmealDto setmealDto) {
+        log.info("新增套餐: name={}, categoryId={}, price={}", setmealDto.getName(), setmealDto.getCategoryId(), setmealDto.getPrice());
         if (setmealService.saveWithSetmealDishes(setmealDto)) {
             return R.success("保存成功");
         }
@@ -53,6 +54,7 @@ public class SetmealController {
     // 修改套餐信息和套餐关联菜品
     @PutMapping
     public R<String> updateWithDishes(@RequestBody SetmealDto setmealDto) {
+        log.info("修改套餐: id={}, name={}, price={}", setmealDto.getId(), setmealDto.getName(), setmealDto.getPrice());
         if (setmealService.updateWithDishes(setmealDto)) {
             return R.success("修改成功");
         }
@@ -63,6 +65,7 @@ public class SetmealController {
     @PostMapping("/status/{status}")
     @CacheEvict(value = "setmealCache", allEntries = true)  // 表示删除"SetmealCache"下的所有缓存数据(个人感觉粒度太粗了)
     public R<String> updateStatus(@PathVariable Integer status, @RequestParam List<Long> ids) {
+        log.info("套餐状态变更: status={}, ids={}", status, ids);
         if (setmealService.updateStatus(status, ids)) {
             return R.success("修改成功");
         }
@@ -73,6 +76,7 @@ public class SetmealController {
     @DeleteMapping
     @CacheEvict(value = "setmealCache", allEntries = true)  // 表示删除"SetmealCache"下的所有缓存数据(个人感觉粒度太粗了)
     public R<String> removeWithDishes(@RequestParam List<Long> ids) {
+        log.info("删除套餐: ids={}", ids);
         if (setmealService.removeWithDish(ids)) {
             return R.success("删除成功");
         }
@@ -82,7 +86,7 @@ public class SetmealController {
     // 根据条件查询套餐集合，支持按名称模糊搜索
     @GetMapping("/list")
     public R<List<Setmeal>> list(Setmeal setmeal, String name) {
-        if (Strings.isNotEmpty(name)) {
+        if (StringUtils.isNotEmpty(name)) {
             return R.success(setmealService.listWithName(setmeal, name));
         }
         return R.success(setmealService.list(setmeal));

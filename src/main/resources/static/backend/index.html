@@ -42,7 +42,7 @@
         <div class="sidebar-container">
             <div class="logo">
                 <!-- <img src="images/logo.png" width="122.5" alt="" /> -->
-                <img src="images/login/login-logo.png" alt="" style="width: 117px; height: 32px"/>
+                <img src="images/login/login-logo.png" alt="Logo" style="width: 117px; height: 32px"/>
             </div>
 
             <el-scrollbar wrap-class="scrollbar-wrapper">
@@ -86,7 +86,7 @@
             <div class="navbar">
                 <div class="head-lable">
               <span v-if="goBackFlag" class="goBack" @click="goBack()"
-              ><img src="images/icons/btn_back@2x.png" alt=""/> 返回</span
+              ><img src="images/icons/btn_back@2x.png" alt="返回"/> 返回</span
               >
                     <span>{{headTitle}}</span>
                 </div>
@@ -162,6 +162,18 @@
                         id: '6',
                         name: '订单明细',
                         url: 'page/order/list.html',
+                        icon: 'icon-order'
+                    },
+                    {
+                        id: '7',
+                        name: '桌台管理',
+                        url: 'page/table/list.html',
+                        icon: 'icon-user'
+                    },
+                    {
+                        id: '8',
+                        name: '收银台',
+                        url: 'page/cashier/index.html',
                         icon: 'icon-order'
                     }
                     //   ],

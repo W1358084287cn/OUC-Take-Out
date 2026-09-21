@@ -112,10 +112,10 @@ public class OrderControllerTest {
         assertEquals(1, result.getCode());
         assertNotNull(result.getData());
         assertTrue(result.getData() >= 0, "待处理订单数应 >= 0");
-        System.out.println("待处理订单数(status=2或3): " + result.getData());
+        System.out.println("待处理订单数(status=2制作中): " + result.getData());
     }
 
-    // ==================== 派送操作测试 (status: 2→3) ====================
+    // ==================== 完成操作测试 (status: 2制作中→3已完成) ====================
 
     @Test
     @Order(8)
@@ -126,12 +126,12 @@ public class OrderControllerTest {
                 .filter(o -> o.getStatus() != null && o.getStatus() == 2)
                 .findFirst().orElse(null);
         if (status2Order == null) {
-            System.out.println("无status=2订单，跳过派送测试");
+            System.out.println("无status=2订单，跳过完成测试");
             return;
         }
         Long testOrderId = status2Order.getId();
         String testOrderNumber = status2Order.getNumber();
-        System.out.println("准备派送订单: id=" + testOrderId + ", number=" + testOrderNumber + ", 当前status=2");
+        System.out.println("准备完成订单: id=" + testOrderId + ", number=" + testOrderNumber + ", 当前status=2");
 
         Orders updateOrder = new Orders();
         updateOrder.setId(testOrderId);
@@ -140,47 +140,47 @@ public class OrderControllerTest {
         assertNotNull(result);
         assertEquals(1, result.getCode());
         assertEquals("修改成功", result.getData());
-        System.out.println("派送操作成功");
+        System.out.println("完成操作成功");
 
         R<Orders> verify = orderController.getById(testOrderId);
         assertNotNull(verify.getData());
-        assertEquals(3, verify.getData().getStatus(), "派送后状态应为3(已派送)，前端应显示[完成]按钮");
-        System.out.println("验证派送结果: status=" + verify.getData().getStatus() + " (已派送) → 前端显示[完成]按钮");
+        assertEquals(3, verify.getData().getStatus(), "完成后状态应为3(已完成)，前端只显示[查看]按钮");
+        System.out.println("验证完成结果: status=" + verify.getData().getStatus() + " (已完成) → 前端只显示[查看]按钮");
     }
 
-    // ==================== 完成操作测试 (status: 3→4) ====================
+    // ==================== 取消操作测试 (status: 2制作中→5已取消) ====================
 
     @Test
     @Order(9)
-    void testComplete() {
+    void testCancel() {
         R<Page<OrderDto>> page = orderController.page(1L, 100L, null, null, null);
         assertNotNull(page.getData());
-        OrderDto status3Order = page.getData().getRecords().stream()
-                .filter(o -> o.getStatus() != null && o.getStatus() == 3)
+        OrderDto status2Order = page.getData().getRecords().stream()
+                .filter(o -> o.getStatus() != null && o.getStatus() == 2)
                 .findFirst().orElse(null);
-        if (status3Order == null) {
-            System.out.println("无status=3订单，跳过完成测试");
+        if (status2Order == null) {
+            System.out.println("无status=2订单，跳过取消测试");
             return;
         }
-        Long completeId = status3Order.getId();
-        System.out.println("准备完成订单: id=" + completeId + ", number=" + status3Order.getNumber() + ", 当前status=3");
+        Long cancelId = status2Order.getId();
+        System.out.println("准备取消订单: id=" + cancelId + ", number=" + status2Order.getNumber() + ", 当前status=2");
 
         Orders updateOrder = new Orders();
-        updateOrder.setId(completeId);
-        updateOrder.setStatus(4);
+        updateOrder.setId(cancelId);
+        updateOrder.setStatus(5);
         R<String> result = orderController.update(updateOrder);
         assertNotNull(result);
         assertEquals(1, result.getCode());
         assertEquals("修改成功", result.getData());
-        System.out.println("完成操作成功");
+        System.out.println("取消操作成功");
 
-        R<Orders> verify = orderController.getById(completeId);
+        R<Orders> verify = orderController.getById(cancelId);
         assertNotNull(verify.getData());
-        assertEquals(4, verify.getData().getStatus(), "完成后状态应为4(已完成)，前端只显示[查看]按钮");
-        System.out.println("验证完成结果: status=" + verify.getData().getStatus() + " (已完成) → 前端只显示[查看]按钮");
+        assertEquals(5, verify.getData().getStatus(), "取消后状态应为5(已取消)");
+        System.out.println("验证取消结果: status=" + verify.getData().getStatus() + " (已取消) → 前端只显示[查看]按钮");
     }
 
-    // ==================== 完整流程回归测试 (2→3→4) ====================
+    // ==================== 完整流程回归测试 (2制作中→3已完成) ====================
 
     @Test
     @Order(10)
@@ -198,35 +198,22 @@ public class OrderControllerTest {
         System.out.println("完整流程测试开始: id=" + flowId + ", number=" + status2Order.getNumber());
 
         // Step1: 确认初始状态
-        assertEquals(2, status2Order.getStatus(), "初始状态应为2(正在派送)");
-        System.out.println("  Step1: 初始状态确认 → status=2(正在派送)，前端应显示[派送]按钮");
+        assertEquals(2, status2Order.getStatus(), "初始状态应为2(制作中)");
+        System.out.println("  Step1: 初始状态确认 → status=2(制作中)，前端应显示[完成]按钮");
 
-        // Step2: 派送
-        Orders dispatch = new Orders();
-        dispatch.setId(flowId);
-        dispatch.setStatus(3);
-        R<String> dispatchResult = orderController.update(dispatch);
-        assertEquals(1, dispatchResult.getCode());
-        System.out.println("  Step2: 派送操作 → 成功");
+        // Step2: 完成
+        Orders done = new Orders();
+        done.setId(flowId);
+        done.setStatus(3);
+        R<String> doneResult = orderController.update(done);
+        assertEquals(1, doneResult.getCode());
+        System.out.println("  Step2: 完成操作 → 成功");
 
-        // Step3: 验证派送
-        R<Orders> afterDispatch = orderController.getById(flowId);
-        assertEquals(3, afterDispatch.getData().getStatus());
-        System.out.println("  Step3: 验证派送 → status=3(已派送)，前端应显示[完成]按钮");
-
-        // Step4: 完成
-        Orders complete = new Orders();
-        complete.setId(flowId);
-        complete.setStatus(4);
-        R<String> completeResult = orderController.update(complete);
-        assertEquals(1, completeResult.getCode());
-        System.out.println("  Step4: 完成操作 → 成功");
-
-        // Step5: 验证完成
-        R<Orders> afterComplete = orderController.getById(flowId);
-        assertEquals(4, afterComplete.getData().getStatus());
-        System.out.println("  Step5: 验证完成 → status=4(已完成)，前端只显示[查看]按钮");
-        System.out.println("完整流程测试通过: 2→3→4 状态转换正常");
+        // Step3: 验证完成
+        R<Orders> afterDone = orderController.getById(flowId);
+        assertEquals(3, afterDone.getData().getStatus());
+        System.out.println("  Step3: 验证完成 → status=3(已完成)，前端只显示[查看]按钮");
+        System.out.println("完整流程测试通过: 2→3 状态转换正常");
     }
 
     // ==================== 异常场景测试 ====================
@@ -251,30 +238,34 @@ public class OrderControllerTest {
         for (OrderDto order : page.getData().getRecords()) {
             Integer status = order.getStatus();
             assertNotNull(status, "订单状态不应为空");
-            assertTrue(status >= 1 && status <= 5, "订单状态应在1-5范围内: " + status);
+            assertTrue(status >= 1 && status <= 6, "订单状态应在1-6范围内: " + status);
             switch (status) {
                 case 1:
                     // 待付款 → 只有[查看]
                     break;
                 case 2:
-                    // 正在派送 → [查看] + [派送]
+                    // 制作中 → [查看] + [完成]
                     break;
                 case 3:
-                    // 已派送 → [查看] + [完成]
+                    // 已完成 → 只有[查看]
                     break;
                 case 4:
-                    // 已完成 → 只有[查看]
+                    // 已完成(兼容旧状态) → 只有[查看]
                     break;
                 case 5:
                     // 已取消 → 只有[查看]
+                    break;
+                case 6:
+                    // 已退款 → 只有[查看]
                     break;
             }
         }
         System.out.println("前端按钮逻辑模拟通过: 共验证" + page.getData().getRecords().size() + "条订单");
         System.out.println("  status=1 → [查看] 仅查看");
-        System.out.println("  status=2 → [查看] + [派送]");
-        System.out.println("  status=3 → [查看] + [完成]");
-        System.out.println("  status=4 → [查看] 仅查看");
+        System.out.println("  status=2 → [查看] + [完成]");
+        System.out.println("  status=3 → [查看] 仅查看");
+        System.out.println("  status=4 → [查看] 仅查看(兼容旧状态)");
         System.out.println("  status=5 → [查看] 仅查看");
+        System.out.println("  status=6 → [查看] 仅查看(已退款)");
     }
 }

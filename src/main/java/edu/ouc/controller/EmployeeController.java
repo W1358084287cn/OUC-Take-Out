@@ -6,7 +6,7 @@ import edu.ouc.common.R;
 import edu.ouc.entity.Employee;
 import edu.ouc.service.IEmployeeService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.util.Strings;
+import org.apache.commons.lang3.StringUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,36 +35,43 @@ public class EmployeeController {
     public R<Employee> login(HttpServletRequest request, @RequestBody Employee employee) {
         String username = employee.getUsername();
         String password = employee.getPassword();
+        log.info("员工登录请求: username={}", username);
         // 1.对前端传入的密码进行md5加密
         password = md5Hex(password);
         // 2.根据前端传入的账号去数据库中查询
         // 2.1 创建查询条件对象
         LambdaQueryWrapper<Employee> lqw = new LambdaQueryWrapper<>();
         // 2.2 使用MP的等值查询eq
-        lqw.eq(Strings.isNotEmpty(username), Employee::getUsername, username);
+        lqw.eq(StringUtils.isNotEmpty(username), Employee::getUsername, username);
         // 2.3 根据lqw的条件进行等值查询
         Employee emp = empService.getOne(lqw);
 
         // 3.判断查询到的员工是否为空
         if (emp == null) {
+            log.warn("员工登录失败: 用户不存在, username={}", username);
             return R.error("用户不存在，登录失败");
         }
         // 4.密码比对
         if (!password.equals(emp.getPassword())) {
+            log.warn("员工登录失败: 密码错误, username={}", username);
             return R.error("密码错误，登录失败");
         }
         // 5.查看员工状态是否禁用
         if (emp.getStatus() != 1) {
+            log.warn("员工登录失败: 账号已禁用, username={}", username);
             return R.error("该账号已禁用");
         }
         // 6.将员工ID存放在Session保存作用域中
         request.getSession().setAttribute("employee", emp.getId());
+        log.info("员工登录成功: id={}, username={}", emp.getId(), username);
         return R.success(emp);
     }
 
     // 后台员工退出登录方法
     @PostMapping("/logout")
     public R<String> logout(HttpServletRequest request) {
+        Object empId = request.getSession().getAttribute("employee");
+        log.info("员工退出登录: id={}", empId);
         // 1.清除Session保存作用域中保存的数据
         request.getSession().removeAttribute("employee");
         // 2.返回结果
@@ -74,6 +81,7 @@ public class EmployeeController {
     // 新增员工功能
     @PostMapping
     public R<String> save(@RequestBody Employee employee) {
+        log.info("新增员工: name={}, username={}, phone={}", employee.getName(), employee.getUsername(), employee.getPhone());
 
         // 1.设置创建人ID
 //        employee.setCreateUser((Long) request.getSession().getAttribute("employee"));
@@ -106,10 +114,11 @@ public class EmployeeController {
     // 修改员工信息
     @PutMapping
     public R<String> update(@RequestBody Employee employee) {
+        log.info("修改员工信息: id={}, name={}, status={}", employee.getId(), employee.getName(), employee.getStatus());
         if (empService.updateById(employee)) {
 
             // 查看当前线程的ID
-            long id = Thread.currentThread().getId();
+            long id = Thread.currentThread().threadId();
             log.info("线程ID为：{}", id);
 
             return R.success("修改成功");

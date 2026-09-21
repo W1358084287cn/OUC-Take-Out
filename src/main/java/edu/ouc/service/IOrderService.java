@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import edu.ouc.dto.OrderDto;
 import edu.ouc.entity.Orders;
 
+import java.util.List;
+
 /**
  * Author: Sihang Xie
  * Description: 订单服务层接口
@@ -17,7 +19,7 @@ public interface IOrderService extends IService<Orders> {
     // 提交(添加)订单，返回订单对象(含订单号)
     Orders submit(Orders orders);
 
-    // 用户支付，更新订单状态为待派送
+    // 用户支付，更新订单状态为制作中
     Boolean pay(Long orderId, Integer payMethod);
 
     // 根据ID查询单个订单
@@ -32,6 +34,21 @@ public interface IOrderService extends IService<Orders> {
     // 修改订单状态
     Boolean update(Orders order);
 
-    // 获取待处理订单数量（status=2待派送 + status=3已派送）
+    // 获取待处理订单数量（status=2制作中）
     Integer getNewOrderCount();
+
+    // 退款
+    Boolean refund(Long orderId, String reason);
+
+    // 加餐(追加菜品)
+    Boolean addItems(Long orderId);
+
+    // 批量删除订单（同时删除订单明细）
+    int batchDelete(List<Long> ids);
+
+    // 根据ID删除单个订单（同时删除订单明细）
+    int deleteById(Long id);
+
+    // 清理超过指定天数的历史订单（同时删除订单明细）
+    int cleanOldOrders(int retentionDays);
 }

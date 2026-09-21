@@ -27,6 +27,7 @@ public class ShoppingCartServiceImpl extends ServiceImpl<ShoppingCartMapper, Sho
     public ShoppingCart add(ShoppingCart shoppingCart) {
         // 获取当前登录用户的 ID
         Long userId = BaseContext.getCurrentUserId();
+        log.info("添加购物车: userId={}, dishId={}, setmealId={}", userId, shoppingCart.getDishId(), shoppingCart.getSetmealId());
         // 给传入的购物车菜品设置用户ID
         shoppingCart.setUserId(userId);
 
@@ -80,6 +81,7 @@ public class ShoppingCartServiceImpl extends ServiceImpl<ShoppingCartMapper, Sho
     public Boolean clean() {
         // 获取当前用户ID
         Long userId = BaseContext.getCurrentUserId();
+        log.info("清空购物车: userId={}", userId);
         // 创建查询条件封装器
         LambdaQueryWrapper<ShoppingCart> lqw = new LambdaQueryWrapper<>();
         lqw.eq(userId != null, ShoppingCart::getUserId, userId);
@@ -92,6 +94,7 @@ public class ShoppingCartServiceImpl extends ServiceImpl<ShoppingCartMapper, Sho
     public Boolean sub(ShoppingCart shoppingCart) {
         // 1.获取当前用户ID
         Long userId = BaseContext.getCurrentUserId();
+        log.info("购物车减一: userId={}, dishId={}, setmealId={}", userId, shoppingCart.getDishId(), shoppingCart.getSetmealId());
         // 2.创建查询条件封装器
         LambdaQueryWrapper<ShoppingCart> lqw = new LambdaQueryWrapper<>();
         // 2.1 添加查询添加：按用户ID查询

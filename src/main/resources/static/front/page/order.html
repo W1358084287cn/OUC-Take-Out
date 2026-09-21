@@ -46,9 +46,10 @@
                 <div class="result">
                     <span>共{{order.sumNum || 0}} 件商品,实付</span><span class="price">￥{{Number(order.amount || 0).toFixed(2)}}</span>
                 </div>
-                <div class="btn" v-if="order.status === 1 || order.status === 4">
+                <div class="btn" v-if="order.status === 1 || order.status === 2 || order.status === 3">
                     <div class="btnAgain" v-if="order.status === 1" @click="goPay(order)">去付款</div>
-                    <div class="btnAgain" v-if="order.status === 4" @click="addOrderAgain(order)">再来一单</div>
+                    <div class="btnAgain" v-if="order.status === 2" @click="addItems(order)">加餐</div>
+                    <div class="btnAgain" v-if="order.status === 3" @click="addOrderAgain(order)">再来一单</div>
                 </div>
             </van-cell>
         </van-list>
@@ -69,7 +70,7 @@
 <!-- 引入axios -->
 <script src="../../backend/plugins/axios/axios.min.js"></script>
 <script src="./../js/request.js"></script>
-<script src="./../api/order.js"></script>
+<script src="./../api/order.js?v=20260920"></script>
 <script>
     new Vue({
         el: "#order",
@@ -137,6 +138,10 @@
             goPay(order) {
                 window.location.href = '/front/page/pay.html?orderId=' + order.id + '&orderNumber=' + order.number + '&amount=' + order.amount
             },
+            addItems(order) {
+                localStorage.setItem('addItemsOrderId', order.id)
+                window.location.href = '/front/index.html'
+            },
             async addOrderAgain(order) {
                 const res = await orderAgainApi({id: order.id})
                 if (res.code === 1) {
@@ -154,10 +159,10 @@
                         str = '待付款'
                         break;
                     case 2:
-                        str = '正在派送'
+                        str = '制作中'
                         break;
                     case 3:
-                        str = '已派送'
+                        str = '已完成'
                         break;
                     case 4:
                         str = '已完成'

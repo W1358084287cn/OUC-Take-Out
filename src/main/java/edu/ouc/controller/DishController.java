@@ -29,6 +29,7 @@ public class DishController {
     // 添加菜品，同时插入菜品对应的口味数据
     @PostMapping
     public R<String> save(@RequestBody DishDto dishDto) {
+        log.info("新增菜品: name={}, categoryId={}, price={}", dishDto.getName(), dishDto.getCategoryId(), dishDto.getPrice());
         if (dishService.saveWithFlavor(dishDto)) {
             return R.success("保存成功");
         }
@@ -50,6 +51,7 @@ public class DishController {
     // 修改菜品，同时修改菜品对应的口味数据
     @PutMapping
     public R<String> update(@RequestBody DishDto dishDto) {
+        log.info("修改菜品: id={}, name={}, price={}", dishDto.getId(), dishDto.getName(), dishDto.getPrice());
         if (dishService.updateWithFlavor(dishDto)) {
             return R.success("修改成功");
         }
@@ -59,6 +61,7 @@ public class DishController {
     // (批量)停售/启售菜品
     @PostMapping("/status/{status}")
     public R<String> updateStatus(@PathVariable Integer status, @RequestParam List<Long> ids) {
+        log.info("菜品状态变更: status={}, ids={}", status, ids);
         if (dishService.updateStatus(status, ids)) {
             return R.success("修改状态成功");
         }
@@ -68,6 +71,7 @@ public class DishController {
     // 删除(批量删除)菜品
     @DeleteMapping
     public R<String> remove(@RequestParam List<Long> ids) {
+        log.info("删除菜品: ids={}", ids);
         if (dishService.removeWithFlavor(ids)) {
             return R.success("删除成功");
         }
@@ -78,5 +82,25 @@ public class DishController {
     @GetMapping("/list")
     public R<List<DishDto>> listByCategoryId(Dish dish, String name) {
         return R.success(dishService.listWithFlavor(dish, name));
+    }
+
+    // 设为估清(售罄)
+    @PutMapping("/soldOut/{id}")
+    public R<String> soldOut(@PathVariable Long id) {
+        log.info("菜品估清: id={}", id);
+        if (dishService.soldOut(id)) {
+            return R.success("已设为估清");
+        }
+        return R.error("估清操作失败");
+    }
+
+    // 恢复启售
+    @PutMapping("/resume/{id}")
+    public R<String> resume(@PathVariable Long id) {
+        log.info("菜品恢复启售: id={}", id);
+        if (dishService.resume(id)) {
+            return R.success("已恢复启售");
+        }
+        return R.error("恢复启售失败");
     }
 }

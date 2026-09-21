@@ -28,6 +28,13 @@
 
     <repositories>
         <repository>
+            <id>aliyun</id>
+            <url>https://maven.aliyun.com/repository/public</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+        </repository>
+        <repository>
             <id>maven-官方中央仓库</id>
             <url>https://repo1.maven.org/maven2</url>
             <releases>
@@ -139,6 +146,18 @@
             <version>1.6.2</version>
         </dependency>
 
+        <!-- ZXing：生成桌台二维码 -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-email -->
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -173,9 +192,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <jvmArguments>--sun-misc-unsafe-memory-access=allow --enable-native-access=ALL-UNNAMED</jvmArguments>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -183,10 +199,6 @@
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
-                    <fork>true</fork>
-                    <compilerArgs>
-                        <arg>-J--sun-misc-unsafe-memory-access=allow</arg>
-                    </compilerArgs>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

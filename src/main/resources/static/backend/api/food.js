@@ -80,3 +80,19 @@ const dishStatusByStatus = (params) => {
     params: { ids: params.id }
   })
 }
+
+// 设为估清
+const dishSoldOut = (id) => {
+  return $axios({
+    url: `/dish/soldOut/${id}`,
+    method: 'put'
+  })
+}
+
+// 恢复启售
+const dishResume = (id) => {
+  return $axios({
+    url: `/dish/resume/${id}`,
+    method: 'put'
+  })
+}

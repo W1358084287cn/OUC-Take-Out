@@ -13,10 +13,9 @@ import edu.ouc.mapper.DishMapper;
 import edu.ouc.service.IDishService;
 import edu.ouc.service.ISetmealService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.util.Strings;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -34,7 +33,6 @@ import java.util.stream.Collectors;
  * Modified By:
  */
 @Slf4j
-// noinspection SpringTransactionalMethodCallsInspection
 @Service
 public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements IDishService {
 
@@ -65,6 +63,7 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
 
         // 1.保存菜品的基本信息
         this.save(dishDto);
+        log.info("新增菜品: id={}, name={}, price={}", dishDto.getId(), dishDto.getName(), dishDto.getPrice());
 
         // 2.获取菜品的ID
         Long dishId = dishDto.getId();
@@ -90,7 +89,7 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
         // 2.创建查询条件构造器
         LambdaQueryWrapper<Dish> lqw = new LambdaQueryWrapper<>();
         // 3.添加过滤添加，按菜品名称查询
-        lqw.like(Strings.isNotEmpty(name), Dish::getName, name);
+        lqw.like(StringUtils.isNotEmpty(name), Dish::getName, name);
         // 4.添加排序条件，按菜品更新时间降序排列
         lqw.orderByDesc(Dish::getUpdateTime);
         // 5.调用数据层的分页查询方法，此时dishPage中已经有值了
@@ -157,6 +156,7 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
     @Transactional  // 涉及到多张表操作，开启事务
     @CacheEvict(value = "DishCache", key = "#dishDto.categoryId + '-1'")
     public Boolean updateWithFlavor(DishDto dishDto) {
+        log.info("修改菜品: id={}, name={}, price={}", dishDto.getId(), dishDto.getName(), dishDto.getPrice());
 
         // 1.删除菜品口味表中对应菜品的口味
         LambdaQueryWrapper<DishFlavor> lqw = new LambdaQueryWrapper<>();
@@ -179,6 +179,7 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
     // (批量)停售/启售菜品
     @Override
     public Boolean updateStatus(Integer status, List<Long> ids) {
+        log.info("菜品状态变更: status={}, ids={}", status, ids);
         // 业务逻辑：如果要停售则必须检查关联套餐是否停售
         if (status == 0) {
             // 根据菜品IDs获取其关联的套餐IDs
@@ -222,6 +223,7 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
     // 删除(批量删除)菜品
     @Override
     public Boolean removeWithFlavor(List<Long> ids) {
+        log.info("删除菜品: ids={}", ids);
         // 1.判断待删除菜品是否正在售卖
         // 1.1 创建dish的条件封装器
         LambdaQueryWrapper<Dish> dishLqw = new LambdaQueryWrapper<>();
@@ -284,10 +286,10 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
         // 2.添加过滤条件：根据分类ID查询菜品
         lqw.eq(dish.getCategoryId() != null, Dish::getCategoryId, dish.getCategoryId());
         // 3.添加过滤条件：按菜品名称模糊搜索
-        lqw.like(Strings.isNotEmpty(name), Dish::getName, name);
+        lqw.like(StringUtils.isNotEmpty(name), Dish::getName, name);
         // 4.添加排序条件：根据sort字段升序排列菜品，再根据最后修改时间降序排列
         lqw.orderByAsc(Dish::getSort).orderByDesc(Dish::getUpdateTime);
-        // 5.条件过滤条件：只查询启售的菜品
+        // 5.条件过滤条件：排除估清菜品（status=0停售、status=1启售、status=2估清均不显示）
         lqw.eq(Dish::getStatus, 1);
         // 5.调用数据层的查询方法
         List<Dish> dishes = this.list(lqw);
@@ -309,5 +311,35 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements ID
             // 6.7 返回封装好的dishDto对象
             return dishDto;
         }).collect(Collectors.toList());
+    }
+
+    // 设为估清(售罄)
+    @Override
+    public Boolean soldOut(Long id) {
+        log.info("菜品估清: id={}", id);
+        Dish dish = this.getById(id);
+        if (dish == null) {
+            throw new CustomException("菜品不存在");
+        }
+        if (dish.getStatus() == 2) {
+            throw new CustomException("该菜品已经是估清状态");
+        }
+        dish.setStatus(2);
+        return this.updateById(dish);
+    }
+
+    // 恢复启售
+    @Override
+    public Boolean resume(Long id) {
+        log.info("菜品恢复启售: id={}", id);
+        Dish dish = this.getById(id);
+        if (dish == null) {
+            throw new CustomException("菜品不存在");
+        }
+        if (dish.getStatus() != 2) {
+            throw new CustomException("该菜品不是估清状态，无需恢复");
+        }
+        dish.setStatus(1);
+        return this.updateById(dish);
     }
 }

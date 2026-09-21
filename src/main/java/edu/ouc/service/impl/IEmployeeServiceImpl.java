@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import edu.ouc.entity.Employee;
 import edu.ouc.mapper.EmployeeMapper;
 import edu.ouc.service.IEmployeeService;
-import org.apache.logging.log4j.util.Strings;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 /**
@@ -35,7 +35,7 @@ public class IEmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> 
         LambdaQueryWrapper<Employee> lqw = new LambdaQueryWrapper<>();
 
         // 2.添加过滤条件：根据员工姓名查询
-        lqw.like(Strings.isNotEmpty(name), Employee::getName, name);
+        lqw.like(StringUtils.isNotEmpty(name), Employee::getName, name);
 
         // 3.添加排序条件：按最后修改时间降序排序
         lqw.orderByDesc(Employee::getUpdateTime);

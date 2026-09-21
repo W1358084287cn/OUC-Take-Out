@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>桌台管理</title>
+    <link rel="stylesheet" href="../../plugins/element-ui/index.css"/>
+    <link rel="stylesheet" href="../../styles/common.css"/>
+    <link rel="stylesheet" href="../../styles/page.css"/>
+    <style>
+        .tableBar { margin-bottom: 20px; }
+        .qrImg { width: 200px; height: 200px; }
+    </style>
+</head>
+<body>
+<div class="dashboard-container" id="table-app" v-loading="loading">
+    <div class="container">
+        <div class="tableBar">
+            <el-input v-model="searchArea" placeholder="按区域过滤" style="width:200px;" clearable></el-input>
+            <el-button type="primary" @click="handleQuery" style="margin-left:10px;">查询</el-button>
+            <el-button type="success" @click="addHandle" style="float:right;">新增桌台</el-button>
+        </div>
+        <el-table :data="tableData" border>
+            <el-table-column prop="tableNo" label="桌号" width="100"></el-table-column>
+            <el-table-column prop="capacity" label="容纳人数" width="100"></el-table-column>
+            <el-table-column prop="area" label="区域" width="100"></el-table-column>
+            <el-table-column label="状态" width="100">
+                <template slot-scope="scope">
+                    <span :style="{color: scope.row.status == 0 ? '#67C23A' : '#E6A23C'}">
+                        {{ scope.row.status == 0 ? '空闲' : '使用中' }}
+                    </span>
+                </template>
+            </el-table-column>
+            <el-table-column label="操作" min-width="280">
+                <template slot-scope="scope">
+                    <el-button type="text" size="small" @click="editHandle(scope.row)">修改</el-button>
+                    <el-button v-if="scope.row.status == 0" type="text" size="small"
+                               style="color:#67C23A;" @click="occupyHandle(scope.row.id)">开台</el-button>
+                    <el-button v-if="scope.row.status == 1" type="text" size="small"
+                               style="color:#E6A23C;" @click="releaseHandle(scope.row.id)">清台</el-button>
+                    <el-button type="text" size="small" class="blueBug" @click="qrCodeHandle(scope.row)">二维码</el-button>
+                    <el-button type="text" size="small" class="delBut" @click="deleteHandle(scope.row.id)">删除</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+        <el-pagination class="pageList" :page-sizes="[10,20,30]" :page-size="pageSize"
+                       layout="total,sizes,prev,pager,next" :total="counts"
+                       @size-change="handleSizeChange" :current-page.sync="page" @current-change="handleCurrentChange"></el-pagination>
+    </div>
+
+    <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="400px">
+        <el-form :model="form" label-width="80px">
+            <el-form-item label="桌号"><el-input v-model="form.tableNo"></el-input></el-form-item>
+            <el-form-item label="容纳人数"><el-input-number v-model="form.capacity" :min="1"></el-input-number></el-form-item>
+            <el-form-item label="区域"><el-input v-model="form.area"></el-input></el-form-item>
+            <el-form-item label="排序"><el-input-number v-model="form.sort" :min="0"></el-input-number></el-form-item>
+        </el-form>
+        <span slot="footer">
+            <el-button @click="dialogVisible=false">取消</el-button>
+            <el-button type="primary" @click="saveHandle">保存</el-button>
+        </span>
+    </el-dialog>
+
+    <el-dialog title="桌台二维码" :visible.sync="qrDialogVisible" width="350px">
+        <div style="text-align:center;">
+            <img :src="qrCodeData" v-if="qrCodeData" class="qrImg" alt="桌台二维码"/>
+            <p style="margin-top:10px;color:#999;">扫码进入桌台点餐</p>
+        </div>
+    </el-dialog>
+</div>
+<script src="../../plugins/vue/vue.js"></script>
+<script src="../../plugins/element-ui/index.js"></script>
+<script src="../../plugins/axios/axios.min.js"></script>
+<script src="../../js/request.js"></script>
+<script>
+    new Vue({
+        el: '#table-app',
+        data() {
+            return {
+                loading: false,
+                tableData: [],
+                counts: 0,
+                page: 1,
+                pageSize: 10,
+                searchArea: '',
+                dialogVisible: false,
+                dialogTitle: '新增桌台',
+                form: {},
+                qrDialogVisible: false,
+                qrCodeData: ''
+            }
+        },
+        created() { this.init() },
+        methods: {
+            init() {
+                this.loading = true
+                const params = { page: this.page, pageSize: this.pageSize, area: this.searchArea || undefined }
+                $axios({ url: '/dinnerTable/page', method: 'get', params }).then(res => {
+                    if (res.code === 1) {
+                        this.tableData = res.data.records || []
+                        this.counts = res.data.total || 0
+                    }
+                }).catch(err => this.$message.error('请求出错：'+err)).finally(() => { this.loading = false })
+            },
+            handleQuery() { this.page = 1; this.init() },
+            addHandle() { this.form = { capacity: 4, area: '大厅', sort: 0 }; this.dialogTitle = '新增桌台'; this.dialogVisible = true },
+            editHandle(row) { this.form = { ...row }; this.dialogTitle = '修改桌台'; this.dialogVisible = true },
+            saveHandle() {
+                const isEdit = !!this.form.id
+                const cfg = { url: '/dinnerTable', method: isEdit ? 'put' : 'post', data: this.form }
+                $axios(cfg).then(res => {
+                    if (res.code === 1) {
+                        this.$message.success(isEdit ? '修改成功' : '新增成功')
+                        this.dialogVisible = false
+                        this.init()
+                    } else this.$message.error(res.msg || '操作失败')
+                }).catch(err => this.$message.error('请求出错：'+err))
+            },
+            deleteHandle(id) {
+                this.$confirm('确认删除该桌台？', '警告', {type:'warning'}).then(() => {
+                    $axios({ url: '/dinnerTable?id='+id, method: 'delete' }).then(res => {
+                        if (res.code === 1) { this.$message.success('删除成功'); this.init() }
+                        else this.$message.error(res.msg)
+                    }).catch(err => this.$message.error('请求出错：'+err))
+                }).catch(()=>{})
+            },
+            occupyHandle(id) {
+                $axios({ url: '/dinnerTable/occupy/'+id, method: 'post' }).then(res => {
+                    if (res.code === 1) { this.$message.success('开台成功'); this.init() }
+                    else this.$message.error(res.msg)
+                }).catch(err => this.$message.error('请求出错：'+err))
+            },
+            releaseHandle(id) {
+                $axios({ url: '/dinnerTable/release/'+id, method: 'post' }).then(res => {
+                    if (res.code === 1) { this.$message.success('清台成功'); this.init() }
+                    else this.$message.error(res.msg)
+                }).catch(err => this.$message.error('请求出错：'+err))
+            },
+            qrCodeHandle(row) {
+                this.loading = true
+                $axios({ url: '/dinnerTable/qrCode/'+row.id, method: 'get' }).then(res => {
+                    if (res.code === 1) { this.qrCodeData = res.data; this.qrDialogVisible = true }
+                    else this.$message.error(res.msg)
+                }).catch(err => this.$message.error('请求出错：'+err)).finally(() => { this.loading = false })
+            },
+            handleSizeChange(val) { this.pageSize = val; this.init() },
+            handleCurrentChange(val) { this.page = val; this.init() }
+        }
+    })
+</script>
+</body>
+</html>

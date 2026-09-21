@@ -26,6 +26,7 @@ public class AddressBookController {
     // 新增地址
     @PostMapping
     public R<AddressBook> save(@RequestBody AddressBook addressBook) {
+        log.info("新增地址: consignee={}, phone={}, detail={}", addressBook.getConsignee(), addressBook.getPhone(), addressBook.getDetail());
         return R.success(addressBookService.saveAdd(addressBook));
     }
 
@@ -38,6 +39,7 @@ public class AddressBookController {
     // 设为默认地址
     @PutMapping("/default")
     public R<AddressBook> setDefault(@RequestBody AddressBook addressBook) {
+        log.info("设置默认地址: id={}", addressBook.getId());
         return R.success(addressBookService.setDefault(addressBook));
     }
 
@@ -60,6 +62,7 @@ public class AddressBookController {
     // 更新
     @PutMapping
     public R<String> updateAdd(@RequestBody AddressBook addressBook) {
+        log.info("修改地址: id={}, consignee={}", addressBook.getId(), addressBook.getConsignee());
         if (addressBookService.updateById(addressBook)) {
             return R.success("保存成功");
         }
@@ -69,6 +72,7 @@ public class AddressBookController {
     // 删除
     @DeleteMapping
     public R<String> remove(@RequestParam Long ids) {
+        log.info("删除地址: id={}", ids);
         if (addressBookService.removeById(ids)) {
             return R.success("删除成功");
         }
