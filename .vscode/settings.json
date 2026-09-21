@@ -1,0 +1,22 @@
+{
+    "java.compile.nullAnalysis.mode": "disabled",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.maxConcurrentBuilds": 1,
+    "java.autobuild.enabled": true,
+    "java.errors.incompleteClasspath.severity": "warning",
+    "java.settings.url": ".settings/org.eclipse.jdt.core.prefs",
+    "java.project.resourceFilters": ["node_modules", ".git", "*.md"],
+    "files.exclude": {
+        "**/.classpath": true,
+        "**/.project": true,
+        "**/.settings": true,
+        "**/.factorypath": true
+    },
+    "java.configuration.runtimes": [
+        {
+            "name": "JavaSE-1.8",
+            "path": "D:/JAVA25",
+            "default": true
+        }
+    ]
+}
