@@ -40,7 +40,7 @@
                 finished-text="没有更多了"
                 @load="getList"
         >
-            <van-cell v-for="(order,index) in orderList" :key="index" class="item">
+            <van-cell v-for="(order,index) in orderList" :key="order.id" class="item">
                 <div class="orderContent" :class="{ editMode: editMode }">
                     <van-checkbox v-if="editMode" v-model="order.checked" @change="onSingleCheckChange" class="orderCheckbox" icon-size="18rem"></van-checkbox>
                     <div class="orderMain">
@@ -183,30 +183,34 @@
                     this.loading = false;
                     return
                 }
-                const res = await orderPagingApi(this.paging)
-                if (res.code === 1) {
-                    let records = res.data.records
-                    if (records && Array.isArray(records)) {
-                        records.forEach(item => {
-                            item.checked = false
-                            let number = 0
-                            if (item.orderDetails && Array.isArray(item.orderDetails)) {
-                                item.orderDetails.forEach(ele => {
-                                    number += ele.number
-                                })
-                            }
-                            item.sumNum = number
-                        })
+                try {
+                    const res = await orderPagingApi(this.paging)
+                    if (res.code === 1) {
+                        let records = res.data.records
+                        if (records && Array.isArray(records)) {
+                            records.forEach(item => {
+                                item.checked = false
+                                let number = 0
+                                if (item.orderDetails && Array.isArray(item.orderDetails)) {
+                                    item.orderDetails.forEach(ele => {
+                                        number += ele.number
+                                    })
+                                }
+                                item.sumNum = number
+                            })
+                        }
+                        this.orderList.push(...res.data.records)
+                        if (this.paging.page >= res.data.pages) {
+                            this.finished = true;
+                        }
+                        this.paging.page = this.paging.page + 1
+                    } else {
+                        this.$notify({type: 'warning', message: res.msg});
                     }
-                    this.orderList.push(...res.data.records)
-                    this.loading = false;
-                    if (this.paging.page >= res.data.pages) {
-                        this.finished = true;
-                    }
-                    this.paging.page = this.paging.page + 1
-                } else {
-                    this.$notify({type: 'warning', message: res.msg});
+                } catch (e) {
+                    this.$notify({type: 'warning', message: '加载订单失败，请下拉重试'});
                 }
+                this.loading = false;
             },
             goPay(order) {
                 window.location.href = '/front/page/pay.html?orderId=' + order.id + '&orderNumber=' + order.number + '&amount=' + order.amount
@@ -305,7 +309,10 @@
                             if (refund.status === 1) {
                                 order.status = 6
                             } else if (refund.status === 2) {
-                                order.status = order._origStatus || 4
+                                if (order._origStatus) {
+                                    order.status = order._origStatus
+                                }
+                                // _origStatus 不存在时（如页面刷新），保留服务端返回的状态
                             } else if (refund.status === 3) {
                                 order.status = 8
                             }

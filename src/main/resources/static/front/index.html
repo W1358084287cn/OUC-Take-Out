@@ -81,7 +81,7 @@
     <div class="divBody">
         <div class="divType" v-show="!isSearching">
             <ul>
-                <li v-for="(item,index) in categoryList" :key="index" @click="categoryClick(index,item.id,item.type)"
+                <li v-for="(item,index) in categoryList" :key="item.id" @click="categoryClick(index,item.id,item.type)"
                     :class="{active:activeType === index}">{{item.name}}
                 </li>
             </ul>
@@ -89,7 +89,7 @@
         <div class="divMenu">
             <div>
                 <div v-if="isSearching && dishList.length === 0" class="divNoResult">暂无相关菜品或套餐</div>
-                <div class="divItem" v-for="(item,index) in dishList" :key="index"
+                <div class="divItem" v-for="(item,index) in dishList" :key="item.id"
                      :class="{soldOutItem: item.status === 2}"
                      @click="item.status !== 2 && dishDetails(item)">
                     <div class="imgWrapper">
@@ -732,7 +732,7 @@
                         dishFlavor.push(item.dishFlavor)
                     } else {
                         flag = false
-                        Notify({type: 'warning', message: '请选择' + item.name});
+                        this.$notify({type: 'warning', message: '请选择' + item.name});
                     }
                 })
                 if (flag) {

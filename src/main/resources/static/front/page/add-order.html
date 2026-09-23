@@ -59,7 +59,7 @@
             <div class="title">订单明细</div>
             <div class="divSplit"></div>
             <div class="itemList">
-                <div class="item" v-for="(item,index) in cartData" :key="index">
+                <div class="item" v-for="(item,index) in cartData" :key="item.id">
                     <el-image :src="imgPathConvert(item.image)">
                         <div slot="error" class="image-slot">
                             <img src="./../images/noImg.png" alt="菜品图片"/>

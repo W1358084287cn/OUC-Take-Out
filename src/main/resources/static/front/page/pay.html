@@ -213,22 +213,26 @@
                     }
                 }
                 this.paying = true
-                // 调用支付接口
-                const params = {
-                    id: this.orderId,
-                    payMethod: this.payMethod
+                try {
+                    // 调用支付接口
+                    const params = {
+                        id: this.orderId,
+                        payMethod: this.payMethod
+                    }
+                    const res = await payOrderApi(params)
+                    if (res.code === 1) {
+                        this.showSuccess = true
+                        // 1.5秒后跳转到支付成功页
+                        setTimeout(() => {
+                            this.toSuccessPage()
+                        }, 1500)
+                    } else {
+                        this.$notify({type: 'warning', message: res.msg || '支付失败'});
+                    }
+                } catch (e) {
+                    this.$notify({type: 'warning', message: '支付请求失败，请重试'});
                 }
-                const res = await payOrderApi(params)
                 this.paying = false
-                if (res.code === 1) {
-                    this.showSuccess = true
-                    // 1.5秒后跳转到支付成功页
-                    setTimeout(() => {
-                        this.toSuccessPage()
-                    }, 1500)
-                } else {
-                    this.$notify({type: 'warning', message: res.msg || '支付失败'});
-                }
             },
             toSuccessPage() {
                 let url = '/front/page/pay-success.html?orderNumber=' + this.orderNumber
