@@ -96,6 +96,113 @@
     margin-right: 0;
 }
 
+/* 公告滚条：替换原配送位置 */
+#main .divTitle .divStatic .divDesc .divNotice {
+    height: 24rem;
+    line-height: 24rem;
+    overflow: hidden;
+    background: #fff7e6;
+    border-radius: 4rem;
+    padding: 0 8rem;
+    margin-bottom: 6rem;
+}
+
+#main .divTitle .divStatic .divDesc .divNotice .noticeScroll {
+    display: flex;
+    align-items: center;
+    animation: noticeScroll 12s linear infinite;
+    white-space: nowrap;
+}
+
+#main .divTitle .divStatic .divDesc .divNotice .noticeIcon {
+    font-size: 14rem;
+    margin-right: 6rem;
+    flex-shrink: 0;
+}
+
+#main .divTitle .divStatic .divDesc .divNotice .noticeText {
+    font-size: 11rem;
+    font-family: PingFangSC, PingFangSC-Regular;
+    font-weight: 400;
+    color: #e37318;
+    display: inline-block;
+}
+
+@keyframes noticeScroll {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+}
+
+/* 最新图文公告卡片 */
+.divNoticeCard {
+    display: flex;
+    align-items: flex-start;
+    background: #fff;
+    border-radius: 8rem;
+    padding: 10rem 12rem;
+    margin-bottom: 6rem;
+    box-shadow: 0 2rem 8rem rgba(0,0,0,0.06);
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+.divNoticeCard:active {
+    box-shadow: 0 2rem 12rem rgba(0,0,0,0.12);
+}
+.divNoticeCard .noticeCardImg {
+    width: 60rem;
+    height: 60rem;
+    border-radius: 6rem;
+    object-fit: cover;
+    flex-shrink: 0;
+    margin-right: 10rem;
+}
+.divNoticeCard .noticeCardBody {
+    flex: 1;
+    min-width: 0;
+}
+.divNoticeCard .noticeCardTitle {
+    font-size: 13rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4rem;
+}
+.divNoticeCard .noticeCardContent {
+    font-size: 11rem;
+    color: #999;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.5;
+}
+
+/* 打烊遮罩提示 */
+.divClosedOverlay {
+    text-align: center;
+    padding: 20rem 0 10rem;
+}
+.divClosedBox {
+    display: inline-block;
+    background: #fef0f0;
+    border: 1rem solid #fde2e2;
+    border-radius: 8rem;
+    padding: 14rem 20rem;
+}
+.divClosedBox .closedIcon {
+    font-size: 24rem;
+    margin-bottom: 4rem;
+}
+.divClosedBox .closedTitle {
+    font-size: 14rem;
+    font-weight: 600;
+    color: #f56c6c;
+    margin-bottom: 2rem;
+}
+.divClosedBox .closedDesc {
+    font-size: 11rem;
+    color: #999;
+}
+
 #main .divTitle > .divDesc {
     opacity: 1;
     font-size: 12rem;

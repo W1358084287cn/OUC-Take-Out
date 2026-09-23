@@ -23,9 +23,17 @@
     <div class="divHead">
         <div class="divTitle">
             <i class="el-icon-arrow-left" @click="goBack"></i>听海餐厅
+            <span class="btnManage" @click="toggleEditMode">{{ editMode ? '完成' : '管理' }}</span>
         </div>
     </div>
     <div class="divBody" v-if="orderList.length > 0">
+        <!-- 管理模式下的操作栏 -->
+        <div class="manageBar" v-if="editMode">
+            <van-checkbox v-model="checkAll" @change="toggleCheckAll" icon-size="18rem">全选</van-checkbox>
+            <div class="btnDeleteSelected" @click="deleteSelected" :class="{ disabled: checkedIds.length === 0 }">
+                删除({{ checkedIds.length }})
+            </div>
+        </div>
         <van-list
                 v-model="loading"
                 :finished="finished"
@@ -33,26 +41,33 @@
                 @load="getList"
         >
             <van-cell v-for="(order,index) in orderList" :key="index" class="item">
-                <div class="timeStatus">
-                    <span>{{order.orderTime || '暂无下单时间'}}</span>
-                    <span>{{getStatus(order.status) || '未知状态'}}</span>
-                </div>
-                <div class="dishList">
-                    <div v-for="(item,index) in order.orderDetails" :key="index" class="item">
-                        <span>{{item.name || '菜品名称'}}</span>
-                        <span>x{{item.number || 0}}</span>
+                <div class="orderContent" :class="{ editMode: editMode }">
+                    <van-checkbox v-if="editMode" v-model="order.checked" @change="onSingleCheckChange" class="orderCheckbox" icon-size="18rem"></van-checkbox>
+                    <div class="orderMain">
+                        <div class="timeStatus">
+                            <span>{{order.orderTime || '暂无下单时间'}}</span>
+                            <span>{{getStatus(order.status) || '未知状态'}}</span>
+                        </div>
+                        <div class="dishList">
+                            <div v-for="(item,index) in order.orderDetails" :key="index" class="item">
+                                <span>{{item.name || '菜品名称'}}</span>
+                                <span>x{{item.number || 0}}</span>
+                            </div>
+                        </div>
+                        <div class="result">
+                            <span>共{{order.sumNum || 0}} 件商品,实付</span><span class="price">￥{{Number(order.amount || 0).toFixed(2)}}</span>
+                        </div>
                     </div>
                 </div>
-                <div class="result">
-                    <span>共{{order.sumNum || 0}} 件商品,实付</span><span class="price">￥{{Number(order.amount || 0).toFixed(2)}}</span>
-                </div>
-                <div class="btn" v-if="order.status === 1 || order.status === 2 || order.status === 3 || order.status === 7 || order.status === 8">
-                    <div class="btnAgain" v-if="order.status === 1" @click="goPay(order)">去付款</div>
-                    <div class="btnAgain" v-if="order.status === 2" @click="addItems(order)">加餐</div>
-                    <div class="btnAgain" v-if="order.status === 2 || order.status === 3" @click="showRefundDialog(order)" style="background:#ff6b6b;color:#fff;border:1px solid #ff6b6b;">申请退款</div>
-                    <div class="btnAgain" v-if="order.status === 3" @click="addOrderAgain(order)">再来一单</div>
-                    <div class="btnAgain" v-if="order.status === 7" style="background:#f5f5f5;color:#999;cursor:not-allowed;">退款审核中...</div>
-                    <div class="btnAgain" v-if="order.status === 8" style="background:#f5f5f5;color:#666;cursor:not-allowed;">已部分退款</div>
+                <div class="btn" v-if="!editMode && ([1,2,3,4,6,7,8].includes(Number(order.status)))">
+                    <div class="btnAgain" v-if="Number(order.status) === 1" @click="goPay(order)">去付款</div>
+                    <div class="btnAgain" v-if="Number(order.status) === 3" @click="addItems(order)">加餐</div>
+                    <div class="btnAgain" v-if="Number(order.status) === 2 || Number(order.status) === 3 || Number(order.status) === 4" @click="showRefundDialog(order)" style="background:#ff6b6b;color:#fff;border:1px solid #ff6b6b;">申请退款</div>
+                    <div class="btnAgain" v-if="Number(order.status) === 4" @click="addOrderAgain(order)">再来一单</div>
+                    <div class="btnAgain" v-if="Number(order.status) === 6" style="background:#52c41a;color:#fff;cursor:not-allowed;">✓ 退款成功</div>
+                    <div class="btnAgain" v-if="Number(order.status) === 6" @click="addOrderAgain(order)">再来一单</div>
+                    <div class="btnAgain" v-if="Number(order.status) === 7" style="background:#f5f5f5;color:#999;cursor:not-allowed;">退款审核中...</div>
+                    <div class="btnAgain" v-if="Number(order.status) === 8" style="background:#f5f5f5;color:#666;cursor:not-allowed;">已部分退款</div>
                 </div>
             </van-cell>
         </van-list>
@@ -118,6 +133,8 @@
                 orderList: [],
                 loading: false,
                 finished: false,
+                editMode: false,
+                checkAll: false,
                 // 退款弹窗
                 refundDialogShow: false,
                 refundSubmitting: false,
@@ -130,7 +147,11 @@
                 }
             }
         },
-        computed: {},
+        computed: {
+            checkedIds() {
+                return this.orderList.filter(o => o.checked).map(o => o.id)
+            }
+        },
         created() {
             this.initData()
         },
@@ -164,10 +185,10 @@
                 }
                 const res = await orderPagingApi(this.paging)
                 if (res.code === 1) {
-                    this.orderList.push(...res.data.records)
                     let records = res.data.records
                     if (records && Array.isArray(records)) {
                         records.forEach(item => {
+                            item.checked = false
                             let number = 0
                             if (item.orderDetails && Array.isArray(item.orderDetails)) {
                                 item.orderDetails.forEach(ele => {
@@ -177,6 +198,7 @@
                             item.sumNum = number
                         })
                     }
+                    this.orderList.push(...res.data.records)
                     this.loading = false;
                     if (this.paging.page >= res.data.pages) {
                         this.finished = true;
@@ -252,8 +274,27 @@
                 }
                 this.refundSubmitting = false
             },
-            // 定时刷新退款中的订单状态
+            // 定时刷新退款中的订单状态 + 全局订单状态刷新
             async refreshOrderStatuses() {
+                // 1. 全局刷新：重新获取首页数据，更新已有订单状态
+                try {
+                    const res = await orderPagingApi({page: 1, pageSize: 50})
+                    if (res.code === 1) {
+                        const freshOrders = res.data.records || []
+                        const freshMap = {}
+                        freshOrders.forEach(o => { freshMap[o.id] = o })
+                        // 更新已有订单的状态和下单时间
+                        this.orderList.forEach(order => {
+                            const fresh = freshMap[order.id]
+                            if (fresh) {
+                                order.status = fresh.status
+                                order.orderTime = fresh.orderTime
+                            }
+                        })
+                    }
+                } catch (e) {}
+
+                // 2. 退款订单特殊处理：更新退款后状态映射
                 const pendingOrders = this.orderList.filter(o => o.status === 7)
                 if (pendingOrders.length === 0) return
                 for (const order of pendingOrders) {
@@ -264,7 +305,7 @@
                             if (refund.status === 1) {
                                 order.status = 6
                             } else if (refund.status === 2) {
-                                order.status = order._origStatus || 3
+                                order.status = order._origStatus || 4
                             } else if (refund.status === 3) {
                                 order.status = 8
                             }
@@ -272,17 +313,62 @@
                     } catch (e) {}
                 }
             },
+            // 切换管理模式
+            toggleEditMode() {
+                this.editMode = !this.editMode
+                if (!this.editMode) {
+                    // 退出管理模式时清除所有勾选
+                    this.orderList.forEach(o => { o.checked = false })
+                    this.checkAll = false
+                }
+            },
+            // 全选 / 取消全选
+            toggleCheckAll(val) {
+                this.orderList.forEach(o => { o.checked = val })
+            },
+            // 单个勾选变化时同步全选状态
+            onSingleCheckChange() {
+                this.checkAll = this.orderList.length > 0 && this.orderList.every(o => o.checked)
+            },
+            // 批量删除选中的订单
+            async deleteSelected() {
+                const ids = this.checkedIds
+                if (ids.length === 0) return
+                try {
+                    await this.$confirm(`确定要删除选中的 ${ids.length} 笔订单吗？删除后不可恢复。`, '确认删除', {
+                        confirmButtonText: '确定删除',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    })
+                } catch (e) {
+                    return
+                }
+                const res = await batchDeleteOrderApi({ ids: ids })
+                if (res.code === 1) {
+                    this.$notify({ type: 'success', message: res.msg || '删除成功' })
+                    // 从列表中移除已删除的订单
+                    this.orderList = this.orderList.filter(o => !ids.includes(o.id))
+                    this.checkAll = false
+                    // 如果列表为空，退出管理模式
+                    if (this.orderList.length === 0) {
+                        this.editMode = false
+                    }
+                } else {
+                    this.$notify({ type: 'warning', message: res.msg || '删除失败' })
+                }
+            },
             getStatus(status) {
                 let str = ''
-                switch (status) {
+                let code = Number(status)
+                switch (code) {
                     case 1:
                         str = '待付款'
                         break;
                     case 2:
-                        str = '制作中'
+                        str = '等待商家接单'
                         break;
                     case 3:
-                        str = '已完成'
+                        str = '制作中'
                         break;
                     case 4:
                         str = '已完成'
@@ -299,7 +385,9 @@
                     case 8:
                         str = '部分退款'
                         break;
-
+                    default:
+                        str = code ? '状态(' + code + ')' : '未知状态'
+                        break;
                 }
                 return str
             }

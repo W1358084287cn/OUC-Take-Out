@@ -44,7 +44,7 @@ public class OrderController {
         return R.error("下单失败");
     }
 
-    // 用户支付：更新订单状态为制作中，记录支付方式和支付时间
+    // 用户支付：更新订单状态为等待商家接单，记录支付方式和支付时间
     @PostMapping("/pay")
     public R<String> pay(@RequestBody Orders orders) {
         log.info("支付请求: orderId={}, payMethod={}", orders.getId(), orders.getPayMethod());
@@ -52,6 +52,17 @@ public class OrderController {
             return R.success("支付成功");
         }
         return R.error("支付失败");
+    }
+
+    // 商家接单：状态 2→3 制作中
+    @PostMapping("/accept")
+    public R<String> accept(@RequestBody Map<String, Long> params) {
+        Long orderId = params.get("orderId");
+        log.info("商家接单请求: orderId={}", orderId);
+        if (orderService.acceptOrder(orderId)) {
+            return R.success("接单成功");
+        }
+        return R.error("接单失败");
     }
 
     // 用户端获取订单分页展示
@@ -140,6 +151,26 @@ public class OrderController {
         }
         int count = orderService.cleanOldOrders(days);
         return R.success("成功清理" + count + "笔历史订单");
+    }
+
+    // 删除全部订单及关联明细
+    @DeleteMapping("/deleteAll")
+    public R<String> deleteAll() {
+        log.info("删除全部订单请求");
+        int count = orderService.deleteAll();
+        return R.success("成功删除全部" + count + "笔订单");
+    }
+
+    // 再来一单
+    @PostMapping("/again")
+    public R<String> again(@RequestBody Map<String, Long> params) {
+        Long orderId = params.get("id");
+        log.info("再来一单请求: orderId={}", orderId);
+        if (orderId == null) {
+            return R.error("订单ID不能为空");
+        }
+        orderService.again(orderId);
+        return R.success("已加入购物车");
     }
 
     // 获取订单保留天数配置

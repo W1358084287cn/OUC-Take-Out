@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>门店设置</title>
+    <link rel="stylesheet" href="../../plugins/element-ui/index.css"/>
+    <link rel="stylesheet" href="../../styles/common.css"/>
+    <link rel="stylesheet" href="../../styles/page.css"/>
+    <style>
+        .store-container { padding: 20px; }
+        .section { background: #fff; border-radius: 10px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .section-title { font-size: 16px; font-weight: 600; color: #303133; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #ebeef5; }
+        .status-area { display: flex; align-items: center; gap: 24px; }
+        .status-badge { padding: 10px 24px; border-radius: 8px; font-size: 18px; font-weight: 700; }
+        .status-badge.open { background: #f0f9eb; color: #67C23A; border: 2px solid #b3e19d; }
+        .status-badge.closed { background: #fef0f0; color: #F56C6C; border: 2px solid #fab6b6; }
+        .status-desc { font-size: 13px; color: #909399; margin-top: 6px; }
+        .time-picker-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .time-picker-row .label-text { width: 100px; color: #606266; font-size: 14px; }
+        .time-picker-row .el-time-select { width: 120px; }
+        .time-picker-row .sep { color: #909399; }
+        .weekday-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+        .weekday-tag { padding: 6px 16px; border-radius: 20px; border: 1px solid #dcdfe6; cursor: pointer; font-size: 13px; color: #606266; transition: all 0.2s; user-select: none; }
+        .weekday-tag.active { background: #409EFF; color: #fff; border-color: #409EFF; }
+        .weekday-tag:hover { border-color: #409EFF; color: #409EFF; }
+        .weekday-tag.active:hover { background: #337ecc; color: #fff; }
+        .info-tip { font-size: 12px; color: #c0c4cc; margin-top: 8px; }
+        .toggle-switch-row { display: flex; align-items: center; gap: 16px; }
+        .toggle-hint { font-size: 13px; color: #909399; }
+        .preview-box { margin-top: 20px; padding: 16px; background: #f5f7fa; border-radius: 8px; }
+        .preview-box .preview-title { font-size: 13px; color: #909399; margin-bottom: 10px; }
+        .preview-box .preview-content { font-size: 14px; color: #303133; line-height: 1.8; }
+        .save-bar { text-align: right; margin-top: 20px; }
+    </style>
+</head>
+<body>
+<div class="dashboard-container" id="store-app">
+    <div class="container">
+
+        <!-- 门店状态卡片 -->
+        <div class="section">
+            <div class="section-title">门店状态</div>
+            <div class="status-area">
+                <div :class="['status-badge', config.open === 1 ? 'open' : 'closed']">
+                    {{ config.open === 1 ? '🟢 营业中' : '🔴 已打烊' }}
+                </div>
+                <div>
+                    <div class="status-desc" v-if="config.open === 1">
+                        当前营业时段：{{ config.startTime }} - {{ config.endTime }}
+                    </div>
+                    <div class="status-desc" v-else>
+                        已手动打烊，C端将显示"已打烊"且无法下单
+                    </div>
+                    <div class="status-desc" v-if="config.restDays">
+                        休息日：{{ restDaysLabel }}
+                    </div>
+                </div>
+            </div>
+            <div class="toggle-switch-row" style="margin-top:20px;">
+                <el-switch
+                    v-model="openSwitch"
+                    active-color="#67C23A"
+                    inactive-color="#F56C6C"
+                    active-text="营业"
+                    inactive-text="打烊"
+                    @change="handleToggle"
+                />
+                <span class="toggle-hint">{{ openSwitch ? 'C端正常接单' : 'C端停止接单（优先级高于营业时段）' }}</span>
+            </div>
+        </div>
+
+        <!-- 营业时间配置 -->
+        <div class="section">
+            <div class="section-title">营业时间设置</div>
+            <div class="time-picker-row">
+                <span class="label-text">每日营业时段</span>
+                <el-time-select
+                    v-model="config.startTime"
+                    :picker-options="{ start: '00:00', step: '00:30', end: '23:30' }"
+                    placeholder="开始时间"
+                    format="HH:mm"
+                    value-format="HH:mm"
+                />
+                <span class="sep">至</span>
+                <el-time-select
+                    v-model="config.endTime"
+                    :picker-options="{ start: '00:00', step: '00:30', end: '23:30' }"
+                    placeholder="结束时间"
+                    format="HH:mm"
+                    value-format="HH:mm"
+                />
+            </div>
+
+            <div class="time-picker-row">
+                <span class="label-text">每周休息日</span>
+                <div class="weekday-tags">
+                    <span v-for="(day, idx) in weekdays" :key="idx"
+                          :class="['weekday-tag', { active: restDaySet.has(idx + 1) }]"
+                          @click="toggleRestDay(idx + 1)">
+                        {{ day }}
+                    </span>
+                </div>
+            </div>
+            <div class="info-tip">点击星期标签切换休息日，未选中的日期为营业日</div>
+
+            <div class="preview-box">
+                <div class="preview-title">预览C端展示效果</div>
+                <div class="preview-content">
+                    <span v-if="openSwitch">🟢 营业中 · {{ config.startTime }} - {{ config.endTime }}</span>
+                    <span v-else>🔴 已打烊</span>
+                    <span v-if="restDaysLabel" style="margin-left:12px;color:#909399;">| 休息日：{{ restDaysLabel }}</span>
+                    <span v-else style="margin-left:12px;color:#909399;">| 每日营业</span>
+                </div>
+            </div>
+
+            <div class="save-bar">
+                <el-button type="primary" @click="saveConfig" :loading="saving">保存设置</el-button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="../../plugins/vue/vue.js"></script>
+<script src="../../plugins/element-ui/index.js"></script>
+<script src="../../plugins/axios/axios.min.js"></script>
+<script src="../../js/request.js?v=20260920"></script>
+<script src="../../api/business.js?v=20260920"></script>
+<script>
+    new Vue({
+        el: '#store-app',
+        data() {
+            return {
+                config: {
+                    open: 1,
+                    startTime: '07:00',
+                    endTime: '21:00',
+                    restDays: ''
+                },
+                openSwitch: true,
+                restDaySet: new Set(),
+                saving: false,
+                weekdays: ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+            }
+        },
+        computed: {
+            restDaysLabel() {
+                if (this.restDaySet.size === 0) return ''
+                const arr = Array.from(this.restDaySet).sort()
+                return arr.map(d => this.weekdays[d - 1]).join('、')
+            }
+        },
+        created() {
+            this.loadConfig()
+        },
+        methods: {
+            loadConfig() {
+                getBusinessConfigApi().then(res => {
+                    if (res.code === 1) {
+                        const data = res.data
+                        this.config = {
+                            open: data.open,
+                            startTime: data.startTime || '07:00',
+                            endTime: data.endTime || '21:00',
+                            restDays: data.restDays || ''
+                        }
+                        this.openSwitch = this.config.open === 1
+                        this.restDaySet.clear()
+                        if (this.config.restDays) {
+                            this.config.restDays.split(',').forEach(d => {
+                                const num = parseInt(d)
+                                if (num >= 1 && num <= 7) this.restDaySet.add(num)
+                            })
+                        }
+                    } else {
+                        this.$message.error(res.msg || '加载营业配置失败')
+                    }
+                }).catch(err => {
+                    this.$message.error('请求出错：' + err)
+                })
+            },
+            toggleRestDay(day) {
+                if (this.restDaySet.has(day)) {
+                    this.restDaySet.delete(day)
+                } else {
+                    this.restDaySet.add(day)
+                }
+                this.config.restDays = Array.from(this.restDaySet).sort().join(',')
+            },
+            handleToggle(val) {
+                toggleBusinessApi(val ? 1 : 0).then(res => {
+                    if (res.code === 1) {
+                        this.$message.success(val ? '已切换为营业状态，C端可正常下单' : '已切换为打烊状态，C端将停止接单')
+                        this.config.open = val ? 1 : 0
+                    } else {
+                        this.openSwitch = !val
+                        this.$message.error(res.msg || '切换失败')
+                    }
+                }).catch(err => {
+                    this.openSwitch = !val
+                    this.$message.error('请求出错：' + err)
+                })
+            },
+            saveConfig() {
+                if (!this.config.startTime || !this.config.endTime) {
+                    this.$message.warning('请设置营业开始和结束时间')
+                    return
+                }
+                this.saving = true
+                updateBusinessConfigApi({
+                    startTime: this.config.startTime,
+                    endTime: this.config.endTime,
+                    restDays: this.config.restDays,
+                    open: this.config.open
+                }).then(res => {
+                    if (res.code === 1) {
+                        this.$message.success('营业时间设置已保存')
+                        this.loadConfig()
+                    } else {
+                        this.$message.error(res.msg || '保存失败')
+                    }
+                }).catch(err => {
+                    this.$message.error('请求出错：' + err)
+                }).finally(() => {
+                    this.saving = false
+                })
+            }
+        }
+    })
+</script>
+</body>
+</html>

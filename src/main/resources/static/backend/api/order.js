@@ -24,6 +24,15 @@ const editOrderDetail = (params) => {
   })
 }
 
+// 商家接单接口
+const acceptOrderApi = (orderId) => {
+  return $axios({
+    url: '/order/accept',
+    method: 'post',
+    data: { orderId }
+  })
+}
+
 // 退款接口
 const refundOrder = (params) => {
   return $axios({
@@ -56,6 +65,14 @@ const cleanOldOrders = (days) => {
     url: '/order/clean',
     method: 'post',
     data: { days }
+  })
+}
+
+// 删除全部订单
+const deleteAllOrdersApi = () => {
+  return $axios({
+    url: '/order/deleteAll',
+    method: 'delete'
   })
 }
 

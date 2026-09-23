@@ -67,3 +67,20 @@ function getRefundStatusApi(orderId) {
       'method': 'get'
   })
 }
+
+//批量删除订单
+function batchDeleteOrderApi(data) {
+  return $axios({
+      'url': '/order/batch',
+      'method': 'delete',
+      data
+  })
+}
+
+//删除单个订单
+function deleteOrderApi(id) {
+  return $axios({
+      'url': `/order/${id}`,
+      'method': 'delete'
+  })
+}

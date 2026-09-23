@@ -20,8 +20,11 @@ public interface IOrderService extends IService<Orders> {
     // 提交(添加)订单，返回订单对象(含订单号)
     Orders submit(Orders orders);
 
-    // 用户支付，更新订单状态为制作中
+    // 用户支付，更新订单状态为等待商家接单
     Boolean pay(Long orderId, Integer payMethod);
+
+    // 商家接单，状态 2→3 制作中
+    Boolean acceptOrder(Long orderId);
 
     // 根据ID查询单个订单
     Orders getOrderById(Long id);
@@ -35,7 +38,7 @@ public interface IOrderService extends IService<Orders> {
     // 修改订单状态
     Boolean update(Orders order);
 
-    // 获取待处理订单数量（status=2制作中）
+    // 获取待处理订单数量（等待商家接单+制作中）
     Integer getNewOrderCount();
 
     // 退款
@@ -64,4 +67,10 @@ public interface IOrderService extends IService<Orders> {
 
     // 清理超过指定天数的历史订单（同时删除订单明细）
     int cleanOldOrders(int retentionDays);
+
+    // 删除全部订单及关联明细
+    int deleteAll();
+
+    // 再来一单：将历史订单菜品重新加入购物车
+    void again(Long orderId);
 }

@@ -31,9 +31,31 @@
             <div class="divDesc">
                 <div class="divName">听海餐厅</div>
                 <div class="divSend">
-                    <span><img src="./images/time.png" alt="时间"/> 营业中</span>
+                    <span><img src="./images/time.png" alt="时间"/> {{ businessOpen ? '营业中' : '已打烊' }}</span>
                     <span><img src="./images/money.png" alt="费用"/> 堂食/自取</span>
-                    <span><img src="./images/location.png" alt="位置"/> 预计出餐12min</span>
+                </div>
+                <!-- 打烊遮罩提示 -->
+                <div class="divClosedOverlay" v-if="!businessOpen">
+                    <div class="divClosedBox">
+                        <div class="closedIcon">🔔</div>
+                        <div class="closedTitle">门店已打烊</div>
+                        <div class="closedDesc">当前不在营业时间，暂时无法下单</div>
+                    </div>
+                </div>
+                <!-- 公告滚条：替换原配送位置 -->
+                <div class="divNotice" v-if="noticeText">
+                    <div class="noticeScroll">
+                        <span class="noticeIcon">📢</span>
+                        <span class="noticeText">{{ noticeText }}</span>
+                    </div>
+                </div>
+                <!-- 最新图文公告 -->
+                <div class="divNoticeCard" v-if="latestNotice" @click="showNoticeDetail(latestNotice)">
+                    <img v-if="latestNotice.image" :src="imgPathConvert(latestNotice.image)" class="noticeCardImg" />
+                    <div class="noticeCardBody">
+                        <div class="noticeCardTitle">{{ latestNotice.title }}</div>
+                        <div class="noticeCardContent">{{ latestNotice.content }}</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -297,7 +319,10 @@
                 searchTimer: null,
                 addItemsOrderId: null, // 加餐模式下的订单ID
                 tableId: null,     //桌台ID（扫码点餐）
-                tableNo: ''        //桌号
+                tableNo: '',       //桌号
+                noticeText: '',    //公告滚条文字（多条公告用 | 分隔）
+                latestNotice: null, //最新的图文公告
+                businessOpen: true, //门店是否营业
             }
         },
         computed: {
@@ -358,6 +383,8 @@
         methods: {
             //初始化数据
             initData() {
+                this.loadNotice()
+                this.loadBusinessStatus()
                 Promise.all([categoryListApi(), cartListApi({tableId: this.tableId || undefined})]).then(res => {
                     //获取分类数据
                     if (res[0].code === 1) {
@@ -379,6 +406,42 @@
                     } else {
                         this.$notify({type: 'warning', message: res[1].msg});
                     }
+                })
+            },
+            //加载公告滚条
+            loadNotice() {
+                announcementActiveApi().then(res => {
+                    if (res.code === 1 && res.data && res.data.length > 0) {
+                        this.noticeText = res.data.map(a => a.content || a.title).join('  |  ')
+                        this.latestNotice = res.data[0] || null
+                    } else {
+                        this.noticeText = ''
+                        this.latestNotice = null
+                    }
+                }).catch(() => {
+                    this.noticeText = ''
+                    this.latestNotice = null
+                })
+            },
+            //点击公告卡片查看详情
+            showNoticeDetail(notice) {
+                if (!notice) return
+                let html = (notice.image ? '<img src="' + this.imgPathConvert(notice.image) + '" style="max-width:100%;border-radius:8px;margin-bottom:8px;" />' : '')
+                         + '<div style="font-size:14px;line-height:1.7;color:#333;">' + (notice.content || '') + '</div>'
+                this.$dialog.alert({
+                    title: notice.title,
+                    message: html,
+                    confirmButtonText: '我知道了'
+                })
+            },
+            //加载门店营业状态
+            loadBusinessStatus() {
+                businessStatusApi().then(res => {
+                    if (res.code === 1 && res.data) {
+                        this.businessOpen = res.data.open
+                    }
+                }).catch(() => {
+                    this.businessOpen = false
                 })
             },
             //分类点击

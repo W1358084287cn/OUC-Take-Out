@@ -142,8 +142,10 @@ public class LoginCheckFilter implements Filter {
                 "/user/sendMsg",    // 发送登录验证码
                 "/common/**",       // 文件上传下载（图片等静态资源，无需登录）
                 "/kitchen/**",
-			"/cashier/**",      // 收银台接口
-			"/dinnerTable/**"   // 桌台管理接口
+			"/cashier/**",         // 收银台接口
+			"/dinnerTable/**",     // 桌台管理接口
+			"/announcement/active", // C端公告查询（无需登录）
+            "/business/status" // C端营业状态查询（无需登录）
         };
 
         // 3.判断本次请求URL是否需要拦截
@@ -162,8 +164,23 @@ public class LoginCheckFilter implements Filter {
                 || requestURI.startsWith("/order/userPage")
                 || requestURI.startsWith("/order/requestRefund")
                 || requestURI.startsWith("/order/refundStatus")
+                || requestURI.startsWith("/order/again")
+                || requestURI.startsWith("/order/addItems")
+                || requestURI.startsWith("/order/pay")
                 || requestURI.startsWith("/shoppingCart")
                 || requestURI.startsWith("/user/loginout");
+
+        // 6.判断是否为B端管理专用接口（只允许员工访问，不允许C端用户session降级或Cookie绕过）
+        // 策略：所有 /order/* 中非 C端 API 的接口都是 B 端专用；/employee/* 全是 B 端；
+        // /category、/dish、/setmeal 中除 /xxx/list 外的都是 B 端管理接口；
+        // /business 中除 /business/status 外都是 B 端专用；/announcement 中除 /announcement/active 外都是 B 端专用
+        boolean isEmployeeOnlyApi = requestURI.startsWith("/employee")
+                || (requestURI.startsWith("/order") && !isClientApi)
+                || (requestURI.startsWith("/category") && !requestURI.equals("/category/list"))
+                || (requestURI.startsWith("/dish") && !requestURI.equals("/dish/list"))
+                || (requestURI.startsWith("/setmeal") && !requestURI.equals("/setmeal/list"))
+                || (requestURI.startsWith("/business") && !requestURI.equals("/business/status"))
+                || (requestURI.startsWith("/announcement") && !requestURI.equals("/announcement/active"));
 
         if (isClientApi) {
             // C端业务接口：优先检查user登录态（含Redis多端互踢校验）
@@ -194,8 +211,8 @@ public class LoginCheckFilter implements Filter {
                 }
             }
 
-            // B端请求也允许user登录态访问（如后台查看C端数据）
-            if (request.getSession().getAttribute("user") != null) {
+            // 非管理专用接口：允许C端用户session降级访问（如/category/list、/dish/list等C端也需要的接口）
+            if (!isEmployeeOnlyApi && request.getSession().getAttribute("user") != null) {
                 Long userId = (Long) request.getSession().getAttribute("user");
                 if (!validateOnlineSession(request, "user", userId)) {
                     request.getSession().removeAttribute("user");
@@ -223,6 +240,12 @@ public class LoginCheckFilter implements Filter {
             }
         }
         if (rememberToken != null) {
+            // 管理专用接口不允许Cookie记住我登陆（只允许员工登录）
+            if (isEmployeeOnlyApi) {
+                log.warn("拒绝Cookie记住我访问管理接口: requestURI={}", requestURI);
+                response.getWriter().write(new ObjectMapper().writeValueAsString(R.error("NOTLOGIN")));
+                return;
+            }
             // 从Spring容器获取服务（使用缓存的上下文）
             WebApplicationContext context = getSpringContext(request);
             if (context != null) {

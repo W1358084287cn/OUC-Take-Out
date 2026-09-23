@@ -172,6 +172,11 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
             // 根据套餐IDs从setmeal_dish表查询对应的菜品IDs
             Set<Long> dishIds = setmealDishService.getDishIdsBySetmealId(ids);
 
+            // 空菜品集：没有关联菜品的套餐直接放行（纯套餐/虚拟套餐场景）
+            if (dishIds.isEmpty()) {
+                log.info("套餐启售: ids={}, 未关联菜品，跳过菜品校验", ids);
+            } else {
+
             // 创建dish的条件包装器
             LambdaQueryWrapper<Dish> lqw1 = new LambdaQueryWrapper<>();
             // 添加过滤条件：IN 套餐关联的菜品ID
@@ -195,6 +200,7 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
             // 如果套餐菜品个数与dish数据表中根据菜品ID查询回来的个数不相等，说明dish数据表中有菜品被删除了
             if (dishes1.size() != dishIds.size()) {
                 throw new CustomException("套餐中有菜品被删除，启售失败");
+            }
             }
         }
 

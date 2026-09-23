@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公告管理</title>
+    <link rel="stylesheet" href="../../plugins/element-ui/index.css"/>
+    <link rel="stylesheet" href="../../styles/common.css"/>
+    <link rel="stylesheet" href="../../styles/page.css"/>
+    <style>
+        .announce-container { padding: 20px; }
+        .tableBar { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+        .tableBar .title { font-size: 17px; font-weight: 600; color: #303133; }
+        .status-tag-active { color: #67C23A; }
+        .status-tag-inactive { color: #c0c4cc; }
+        .image-cell img { width: 80px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer; }
+        .image-cell span { color: #c0c4cc; font-size: 12px; }
+        .preview-img { max-width: 100%; max-height: 400px; border-radius: 6px; }
+
+        /* 强制限制上传预览图尺寸 - 覆盖Element UI默认样式 */
+        .announce-container .el-upload .avatar {
+            width: 150px !important;
+            height: 120px !important;
+            max-width: 150px !important;
+            max-height: 120px !important;
+            object-fit: cover !important;
+            border-radius: 6px !important;
+            display: block !important;
+            border: 1px solid #dcdfe6 !important;
+        }
+        .announce-container .el-upload {
+            width: 150px !important;
+            height: 120px !important;
+            border: 1px dashed #d9d9d9 !important;
+            border-radius: 6px !important;
+            overflow: hidden !important;
+            display: inline-block !important;
+        }
+        .announce-container .el-upload:hover {
+            border-color: #409EFF !important;
+        }
+        .announce-container .avatar-uploader-icon {
+            font-size: 28px !important;
+            color: #8c939d !important;
+            width: 150px !important;
+            height: 120px !important;
+            line-height: 120px !important;
+            text-align: center !important;
+        }
+        .upload-tip { font-size: 12px; color: #909399; margin-top: 6px; }
+    </style>
+</head>
+<body>
+<div class="dashboard-container" id="announce-app">
+    <div class="container">
+
+        <div class="tableBar">
+            <span class="title">公告列表</span>
+            <el-button type="primary" @click="openAddDialog">+ 发布公告</el-button>
+        </div>
+
+        <el-table :data="tableData" stripe class="tableBox" v-loading="loading">
+            <el-table-column prop="id" label="编号" width="180" align="center"/>
+            <el-table-column prop="title" label="标题" min-width="160" show-overflow-tooltip/>
+            <el-table-column label="配图" width="100" align="center">
+                <template slot-scope="scope">
+                    <div class="image-cell">
+                        <img v-if="scope.row.image" :src="getImageUrl(scope.row.image)"
+                             @click="previewImage(scope.row.image)" title="点击查看大图"/>
+                        <span v-else>无配图</span>
+                    </div>
+                </template>
+            </el-table-column>
+            <el-table-column prop="content" label="正文" min-width="200" show-overflow-tooltip>
+                <template slot-scope="scope">
+                    <span>{{ scope.row.content || '-' }}</span>
+                </template>
+            </el-table-column>
+            <el-table-column label="状态" width="80" align="center">
+                <template slot-scope="scope">
+                    <span :class="scope.row.status === 1 ? 'status-tag-active' : 'status-tag-inactive'">
+                        {{ scope.row.status === 1 ? '生效中' : '已下架' }}
+                    </span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="createTime" label="发布时间" width="170" align="center"/>
+            <el-table-column label="操作" width="160" align="center">
+                <template slot-scope="scope">
+                    <el-button type="text" size="small" class="blueBug"
+                               @click="openEditDialog(scope.row)">编辑</el-button>
+                    <el-button v-if="scope.row.status === 1" type="text" size="small"
+                               class="delBut non" @click="removeHandle(scope.row.id)">下架</el-button>
+                    <span v-else style="color:#c0c4cc;font-size:12px;">已下架</span>
+                </template>
+            </el-table-column>
+        </el-table>
+
+        <div v-if="tableData.length === 0 && !loading" style="text-align:center;padding:40px;color:#999;">
+            暂无公告，点击上方按钮发布第一条
+        </div>
+    </div>
+
+    <!-- 新增/编辑公告弹框 -->
+    <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="550px" :before-close="handleDialogClose">
+        <el-form label-width="80px">
+            <el-form-item label="公告标题">
+                <el-input v-model="form.title" placeholder="请输入公告标题" maxlength="30"/>
+            </el-form-item>
+            <el-form-item label="公告正文">
+                <el-input type="textarea" v-model="form.content" :rows="4" placeholder="请输入公告正文（可选，与配图至少填一项）"/>
+            </el-form-item>
+            <el-form-item label="配图上传">
+                <el-upload
+                    class="avatar-uploader"
+                    action="/common/upload"
+                    :show-file-list="false"
+                    :on-success="handleUploadSuccess"
+                    :on-error="handleUploadError"
+                    :before-upload="beforeUpload"
+                    ref="uploadRef"
+                >
+                    <img v-if="form.image" :src="getImageUrl(form.image)" class="avatar"/>
+                    <i v-else class="el-icon-plus avatar-uploader-icon"></i>
+                </el-upload>
+                <div class="upload-tip">支持 jpg/png/gif/bmp/webp 格式，单张不超过10MB，大图会自动压缩</div>
+            </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+            <el-button @click="dialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="submitForm" :loading="submitting">保存</el-button>
+        </span>
+    </el-dialog>
+
+    <!-- 图片预览弹框 -->
+    <el-dialog :visible.sync="previewVisible" width="500px" title="配图预览">
+        <img :src="previewSrc" class="preview-img" v-if="previewSrc"/>
+    </el-dialog>
+</div>
+
+<script src="../../plugins/vue/vue.js"></script>
+<script src="../../plugins/element-ui/index.js"></script>
+<script src="../../plugins/axios/axios.min.js"></script>
+<script src="../../js/request.js?v=20260920"></script>
+<script src="../../api/announcement.js?v=20260920"></script>
+<script>
+    new Vue({
+        el: '#announce-app',
+        data() {
+            return {
+                tableData: [],
+                loading: false,
+                dialogVisible: false,
+                dialogTitle: '发布公告',
+                isEdit: false,
+                editId: null,
+                submitting: false,
+                form: {
+                    title: '',
+                    content: '',
+                    image: ''
+                },
+                previewVisible: false,
+                previewSrc: ''
+            }
+        },
+        created() {
+            this.loadData()
+        },
+        methods: {
+            loadData() {
+                this.loading = true
+                getAnnouncementListApi().then(res => {
+                    if (res.code === 1) {
+                        this.tableData = res.data || []
+                    } else {
+                        this.$message.error(res.msg || '加载公告列表失败')
+                    }
+                }).catch(err => {
+                    this.$message.error('请求出错：' + err)
+                }).finally(() => {
+                    this.loading = false
+                })
+            },
+            getImageUrl(name) {
+                if (!name) return ''
+                return '/common/download?name=' + encodeURIComponent(name)
+            },
+            previewImage(image) {
+                this.previewSrc = this.getImageUrl(image)
+                this.previewVisible = true
+            },
+            openAddDialog() {
+                this.dialogTitle = '发布公告'
+                this.isEdit = false
+                this.editId = null
+                this.form = { title: '', content: '', image: '' }
+                this.dialogVisible = true
+                this.$nextTick(() => {
+                    if (this.$refs.uploadRef) this.$refs.uploadRef.clearFiles()
+                })
+            },
+            openEditDialog(row) {
+                this.dialogTitle = '编辑公告'
+                this.isEdit = true
+                this.editId = row.id
+                this.form = {
+                    title: row.title || '',
+                    content: row.content || '',
+                    image: row.image || ''
+                }
+                this.dialogVisible = true
+                this.$nextTick(() => {
+                    if (this.$refs.uploadRef) this.$refs.uploadRef.clearFiles()
+                })
+            },
+            handleUploadSuccess(res) {
+                if (res.code === 1) {
+                    this.form.image = res.data
+                    this.$message.success('图片上传成功')
+                } else {
+                    this.$message.error(res.msg || '图片上传失败')
+                }
+            },
+            handleUploadError() {
+                this.$message.error('图片上传失败，请重试')
+            },
+            beforeUpload(file) {
+                const validTypes = [
+                    'image/jpeg', 'image/png', 'image/gif',
+                    'image/bmp', 'image/webp', 'image/x-icon'
+                ]
+                if (!validTypes.includes(file.type)) {
+                    this.$message.error('不支持的图片格式，仅支持 jpg/png/gif/bmp/webp/ico')
+                    return false
+                }
+                const maxSize = 10 * 1024 * 1024
+                if (file.size > maxSize) {
+                    this.$message.error('图片大小不能超过 10MB')
+                    return false
+                }
+                this.compressImage(file).then(compressedFile => {
+                    if (this.$refs.uploadRef) {
+                        const formData = new FormData()
+                        formData.append('file', compressedFile)
+                        axios.post('/common/upload', formData, {
+                            headers: { 'Content-Type': 'multipart/form-data' }
+                        }).then(res => {
+                            this.handleUploadSuccess(res.data)
+                        }).catch(() => {
+                            this.handleUploadError()
+                        })
+                    }
+                })
+                return false
+            },
+            compressImage(file) {
+                return new Promise((resolve) => {
+                    console.log('📸 开始压缩图片:', file.name, '原始大小:', (file.size / 1024).toFixed(2), 'KB')
+                    const reader = new FileReader()
+                    reader.onload = (e) => {
+                        const img = new Image()
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas')
+                            const ctx = canvas.getContext('2d')
+
+                            // 更严格的尺寸限制：最大800x600（适合公告配图）
+                            const maxWidth = 800
+                            const maxHeight = 600
+                            let width = img.width
+                            let height = img.height
+
+                            console.log('📐 原始尺寸:', width, 'x', height)
+
+                            if (width > maxWidth || height > maxHeight) {
+                                const ratio = Math.min(maxWidth / width, maxHeight / height)
+                                width = Math.floor(width * ratio)
+                                height = Math.floor(height * ratio)
+                                console.log('✂️ 缩放后尺寸:', width, 'x', height)
+                            }
+
+                            canvas.width = width
+                            canvas.height = height
+
+                            ctx.drawImage(img, 0, 0, width, height)
+
+                            // 更激进的质量压缩
+                            let quality = 0.7
+                            if (file.size > 5 * 1024 * 1024) {
+                                quality = 0.5  // 超过5MB，高质量压缩
+                            } else if (file.size > 2 * 1024 * 1024) {
+                                quality = 0.6  // 超过2MB，中等压缩
+                            } else if (file.size > 500 * 1024) {
+                                quality = 0.75 // 超过500KB，轻度压缩
+                            }
+
+                            console.log('🎨 压缩质量:', quality)
+
+                            canvas.toBlob((blob) => {
+                                const compressedFile = new File([blob], file.name, {
+                                    type: blob.type,
+                                    lastModified: Date.now()
+                                })
+                                console.log('✅ 压缩完成:', (compressedFile.size / 1024).toFixed(2), 'KB',
+                                           '压缩率:', ((1 - compressedFile.size / file.size) * 100).toFixed(1), '%')
+                                resolve(compressedFile)
+                            }, file.type || 'image/jpeg', quality)
+                        }
+                        img.src = e.target.result
+                    }
+                    reader.readAsDataURL(file)
+                })
+            },
+            submitForm() {
+                if (!this.form.title || this.form.title.trim() === '') {
+                    this.$message.warning('公告标题不能为空')
+                    return
+                }
+                if ((!this.form.content || this.form.content.trim() === '') && (!this.form.image || this.form.image.trim() === '')) {
+                    this.$message.warning('公告正文和配图至少填写一项')
+                    return
+                }
+                this.submitting = true
+                const data = {
+                    title: this.form.title.trim(),
+                    content: this.form.content.trim(),
+                    image: this.form.image
+                }
+
+                const apiCall = this.isEdit
+                    ? updateAnnouncementApi({ ...data, id: this.editId })
+                    : addAnnouncementApi(data)
+
+                apiCall.then(res => {
+                    if (res.code === 1) {
+                        this.$message.success(this.isEdit ? '编辑成功' : '发布成功')
+                        this.dialogVisible = false
+                        this.loadData()
+                    } else {
+                        this.$message.error(res.msg || '操作失败')
+                    }
+                }).catch(err => {
+                    this.$message.error('请求出错：' + err)
+                }).finally(() => {
+                    this.submitting = false
+                })
+            },
+            removeHandle(id) {
+                this.$confirm('确定下架该公告？下架后C端将不再展示', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    removeAnnouncementApi(id).then(res => {
+                        if (res.code === 1) {
+                            this.$message.success('已下架')
+                            this.loadData()
+                        } else {
+                            this.$message.error(res.msg || '下架失败')
+                        }
+                    }).catch(err => {
+                        this.$message.error('请求出错：' + err)
+                    })
+                }).catch(() => {})
+            },
+            handleDialogClose() {
+                this.dialogVisible = false
+            }
+        }
+    })
+</script>
+</body>
+</html>

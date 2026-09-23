@@ -28,20 +28,29 @@
     <div class="divContent">
         <div class="divAddress">
             <div>
-                <template v-if="isTableMode">
-                    <div class="address">桌号 {{ tableNo }}</div>
-                    <div class="name">
-                        <span>堂食点餐</span>
-                        <span>无需自取</span>
-                    </div>
-                </template>
-                <template v-else>
-                    <div class="address">自取</div>
-                    <div class="name">
-                        <span>{{ userName || '同学' }}</span>
-                        <span>{{ userEmail || '' }}</span>
-                    </div>
-                </template>
+                <div class="dine-type-bar">
+                    <span :class="['dine-type-tab', { active: dineType === 'dineIn' }]"
+                          @click="selectDineType('dineIn')">堂食</span>
+                    <span :class="['dine-type-tab', { active: dineType === 'takeout' }]"
+                          @click="selectDineType('takeout')">自取</span>
+                </div>
+                <div class="address" v-if="dineType === 'dineIn'">
+                    桌号 {{ isTableMode ? tableNo : (inputTableNo || '未填桌号') }}
+                </div>
+                <div class="address" v-else>自取</div>
+                <div class="name" v-if="dineType === 'dineIn'">
+                    <span>堂食点餐</span>
+                    <span v-if="isTableMode">无需自取</span>
+                    <span v-else class="table-input-wrap">
+                        桌号
+                        <input v-model="inputTableNo" type="text" placeholder="输入桌号"
+                               class="table-no-input" maxlength="6" />
+                    </span>
+                </div>
+                <div class="name" v-else>
+                    <span>{{ userName || '同学' }}</span>
+                    <span>{{ userEmail || '' }}</span>
+                </div>
             </div>
             <div class="divSplit"></div>
             <div class="divFinishTime">预计{{finishTime}}取餐</div>
@@ -119,7 +128,9 @@
                 tableId: null,     //桌台ID
                 tableNo: '',       //桌号
                 userName: '',      //用户名（带走模式用）
-                userEmail: ''      //用户邮箱（带走模式用）
+                userEmail: '',     //用户邮箱（带走模式用）
+                dineType: 'takeout',//用餐方式：dineIn(堂食) / takeout(自取)
+                inputTableNo: ''   //手动输入的桌号（非扫码堂食时使用）
             }
         },
         computed: {
@@ -151,6 +162,8 @@
             this.addItemsOrderId = urlParams.get('addItemsOrderId')
             this.tableId = urlParams.get('tableId')
             this.tableNo = urlParams.get('tableNo') || ''
+            // 扫码进→默认堂食，普通进→默认自取（用户可切换）
+            this.dineType = this.tableId ? 'dineIn' : 'takeout'
             if (this.addItemsOrderId) {
                 localStorage.setItem('addItemsOrderId', this.addItemsOrderId)
             } else {
@@ -168,6 +181,9 @@
                     localStorage.removeItem('addItemsOrderId')
                 }
                 history.go(-1)
+            },
+            selectDineType(type) {
+                this.dineType = type
             },
             initData() {
                 //带走模式加载用户信息
@@ -222,10 +238,17 @@
                     }
                     return
                 }
+                // 堂食但非扫码且未填桌号 → 提醒用户
+                if (this.dineType === 'dineIn' && !this.isTableMode && !this.inputTableNo.trim()) {
+                    this.$notify({type: 'warning', message: '堂食请填写桌号'});
+                    return
+                }
                 const params = {
                     remark: this.note,
                     payMethod: 1,
-                    tableNo: this.isTableMode ? this.tableNo : undefined
+                    tableNo: this.dineType === 'dineIn'
+                        ? (this.isTableMode ? this.tableNo : this.inputTableNo.trim())
+                        : undefined
                 }
                 // 正常下单时清理加餐残留标记
                 localStorage.removeItem('addItemsOrderId')

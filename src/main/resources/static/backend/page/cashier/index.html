@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="../../styles/common.css"/>
     <link rel="stylesheet" href="../../styles/page.css"/>
     <style>
+        [v-cloak] { display: none; }
         .cashier-container { padding: 20px; }
         .date-banner { background: linear-gradient(135deg, #409EFF, #337ecc); color: #fff; border-radius: 10px; padding: 16px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
         .date-banner .today-label { font-size: 14px; opacity: 0.85; }
@@ -38,7 +39,7 @@
     </style>
 </head>
 <body>
-<div class="dashboard-container" id="cashier-app">
+<div class="dashboard-container" id="cashier-app" v-cloak>
     <div class="container">
 
         <!-- 今日日期横幅 -->
@@ -58,6 +59,8 @@
             <div>
                 <span class="auto-refresh-tip">每10秒自动刷新</span>
                 <span class="config-badge" @click="showConfigDialog">⚙ 设置（每日{{ config.resetHour }}:00刷新，保存{{ config.retentionDays }}天）</span>
+                <span class="config-badge" @click="showNoticeDialog">📢 公告管理</span>
+                <span class="config-badge" @click="showBusinessDialog">🏪 营业设置</span>
                 <el-button type="primary" size="small" @click="refresh" style="margin-left:6px;" icon="el-icon-refresh" :loading="refreshing">刷新</el-button>
             </div>
         </div>
@@ -143,6 +146,109 @@
             <el-button type="primary" @click="saveConfig">保存</el-button>
         </div>
     </el-dialog>
+
+    <!-- 公告管理弹窗 -->
+    <el-dialog title="餐厅公告管理" :visible.sync="noticeDialogVisible" width="600px">
+        <el-form :model="noticeForm" label-width="80px" size="small">
+            <el-form-item label="标题">
+                <el-input v-model="noticeForm.title" placeholder="请输入公告标题" style="width:400px;"></el-input>
+            </el-form-item>
+            <el-form-item label="内容">
+                <el-input v-model="noticeForm.content" type="textarea" :rows="3" placeholder="请输入公告文字内容" style="width:400px;"></el-input>
+            </el-form-item>
+            <el-form-item label="配图">
+                <el-upload
+                    class="notice-upload"
+                    action="/common/upload"
+                    :show-file-list="false"
+                    :on-success="onNoticeImgSuccess"
+                    :before-upload="beforeNoticeImgUpload"
+                    accept="image/*">
+                    <el-button size="small" type="primary" icon="el-icon-picture">上传图片</el-button>
+                    <span slot="tip" style="margin-left:10px;color:#999;font-size:12px;">选填，支持jpg/png</span>
+                </el-upload>
+                <div v-if="noticeForm.image" style="margin-top:8px;">
+                    <img :src="getNoticeImgUrl(noticeForm.image)" style="max-width:200px;max-height:120px;border-radius:4px;" />
+                    <el-button type="text" @click="noticeForm.image = ''" style="color:#F56C6C;">移除</el-button>
+                </div>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" @click="addNotice" :loading="noticeSubmitting">发布公告</el-button>
+            </el-form-item>
+        </el-form>
+        <el-table :data="noticeList" stripe size="small" empty-text="暂无公告">
+            <el-table-column prop="title" label="标题" min-width="100" />
+            <el-table-column prop="content" label="内容" min-width="160" show-overflow-tooltip />
+            <el-table-column label="配图" width="80" align="center">
+                <template slot-scope="scope">
+                    <el-image v-if="scope.row.image" :src="getNoticeImgUrl(scope.row.image)" style="width:40px;height:40px;border-radius:3px;" fit="cover" :preview-src-list="[getNoticeImgUrl(scope.row.image)]" />
+                    <span v-else style="color:#ccc;">无</span>
+                </template>
+            </el-table-column>
+            <el-table-column label="状态" width="80" align="center">
+                <template slot-scope="scope">
+                    <el-tag :type="scope.row.status === 1 ? 'success' : 'info'" size="mini">
+                        {{ scope.row.status === 1 ? '生效中' : '已下架' }}
+                    </el-tag>
+                </template>
+            </el-table-column>
+            <el-table-column label="操作" width="80" align="center">
+                <template slot-scope="scope">
+                    <el-button v-if="scope.row.status === 1" type="danger" size="mini" @click="removeNotice(scope.row.id)">下架</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+        <div slot="footer">
+            <el-button @click="noticeDialogVisible = false">关闭</el-button>
+        </div>
+    </el-dialog>
+
+    <!-- 营业状态管理弹窗 -->
+    <el-dialog title="营业时间设置" :visible.sync="businessDialogVisible" width="500px">
+        <el-form :model="businessForm" label-width="100px" size="small">
+            <el-form-item label="门店状态">
+                <el-switch
+                    v-model="businessForm.open"
+                    :active-value="1"
+                    :inactive-value="0"
+                    active-text="营业中"
+                    inactive-text="已打烊"
+                    active-color="#13ce66"
+                    inactive-color="#ff4949"
+                    @change="toggleBusiness" />
+            </el-form-item>
+            <el-form-item label="营业开始时间">
+                <el-time-select
+                    v-model="businessForm.startTime"
+                    :picker-options="{ start: '00:00', step: '00:30', end: '23:30' }"
+                    placeholder="开始时间" style="width:140px;" />
+            </el-form-item>
+            <el-form-item label="营业结束时间">
+                <el-time-select
+                    v-model="businessForm.endTime"
+                    :picker-options="{ start: '00:30', step: '00:30', end: '23:59', minTime: businessForm.startTime }"
+                    placeholder="结束时间" style="width:140px;" />
+            </el-form-item>
+            <el-form-item label="休息日">
+                <el-checkbox-group v-model="businessForm.restDayList">
+                    <el-checkbox label="1">周一</el-checkbox>
+                    <el-checkbox label="2">周二</el-checkbox>
+                    <el-checkbox label="3">周三</el-checkbox>
+                    <el-checkbox label="4">周四</el-checkbox>
+                    <el-checkbox label="5">周五</el-checkbox>
+                    <el-checkbox label="6">周六</el-checkbox>
+                    <el-checkbox label="7">周日</el-checkbox>
+                </el-checkbox-group>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" @click="saveBusiness" :loading="businessSaving">保存设置</el-button>
+                <span style="margin-left:12px;color:#909399;font-size:12px;">当前门店状态：<b :style="{color: businessForm.open===1 ? '#13ce66' : '#ff4949'}">{{ businessForm.open===1 ? '🟢 营业中' : '🔴 已打烊' }}</b></span>
+            </el-form-item>
+        </el-form>
+        <div slot="footer">
+            <el-button @click="businessDialogVisible = false">关闭</el-button>
+        </div>
+    </el-dialog>
 </div>
 <script src="../../plugins/vue/vue.js"></script>
 <script src="../../plugins/element-ui/index.js"></script>
@@ -164,7 +270,14 @@
                 historyPageSize: 10,
                 refreshing: false,
                 flashKey: 0,
-                lastFlashKey: 0
+                lastFlashKey: 0,
+                noticeDialogVisible: false,
+                noticeList: [],
+                noticeForm: { title: '', content: '', image: '' },
+                noticeSubmitting: false,
+                businessDialogVisible: false,
+                businessForm: { open: 1, startTime: '07:00', endTime: '21:00', restDayList: [] },
+                businessSaving: false
             }
         },
         computed: {
@@ -210,19 +323,19 @@
             },
             loadConfig() {
                 getCashierConfigApi().then(res => {
-                    if (res.code === 1 && res.data) {
+                    if (res && res.code === 1 && res.data) {
                         this.config = res.data
                         this.configForm = { ...res.data }
                     }
-                })
+                }).catch(function() {})
             },
             loadHistory() {
                 getCashierHistoryApi({ page: this.historyPage, pageSize: this.historyPageSize }).then(res => {
-                    if (res.code === 1 && res.data) {
+                    if (res && res.code === 1 && res.data) {
                         this.historyList = res.data.records || []
                         this.historyTotal = res.data.total || 0
                     }
-                })
+                }).catch(function() {})
             },
             showConfigDialog() {
                 this.configForm = { ...this.config }
@@ -244,7 +357,116 @@
                 this.loadHistory()
                 this.lastFlashKey = this.flashKey
                 this.$message.success('已刷新')
-            }
+            },
+            showNoticeDialog() {
+                this.noticeDialogVisible = true
+                this.loadNoticeList()
+            },
+            loadNoticeList() {
+                $axios.get('/announcement/list').then(res => {
+                    if (res.code === 1) {
+                        this.noticeList = res.data || []
+                    }
+                })
+            },
+            onNoticeImgSuccess(response) {
+                if (response.code === 1) {
+                    this.noticeForm.image = response.data
+                } else {
+                    this.$message.error(response.msg || '上传失败')
+                }
+            },
+            beforeNoticeImgUpload(file) {
+                const isImage = file.type.startsWith('image/')
+                if (!isImage) {
+                    this.$message.error('只能上传图片文件')
+                    return false
+                }
+                const isLt2M = file.size / 1024 / 1024 < 2
+                if (!isLt2M) {
+                    this.$message.error('图片大小不能超过 2MB')
+                    return false
+                }
+                return true
+            },
+            getNoticeImgUrl(image) {
+                if (!image) return ''
+                return '/common/download?name=' + encodeURIComponent(image)
+            },
+            addNotice() {
+                if (!this.noticeForm.title.trim()) {
+                    this.$message.warning('请输入公告标题')
+                    return
+                }
+                this.noticeSubmitting = true
+                $axios.post('/announcement', this.noticeForm).then(res => {
+                    if (res.code === 1) {
+                        this.$message.success('公告已发布')
+                        this.noticeForm = { title: '', content: '', image: '' }
+                        this.loadNoticeList()
+                    } else {
+                        this.$message.error(res.msg || '发布失败')
+                    }
+                }).catch(() => {
+                    this.$message.error('网络异常')
+                }).finally(() => {
+                    this.noticeSubmitting = false
+                })
+            },
+            removeNotice(id) {
+                this.$confirm('确定下架此公告？', '提示', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }).then(() => {
+                    $axios.delete('/announcement/' + id).then(res => {
+                        if (res.code === 1) {
+                            this.$message.success('已下架')
+                            this.loadNoticeList()
+                        } else {
+                            this.$message.error(res.msg || '操作失败')
+                        }
+                    })
+                }).catch(() => {})
+            },
+            showBusinessDialog() {
+                this.businessDialogVisible = true
+                this.loadBusinessConfig()
+            },
+            loadBusinessConfig() {
+                $axios.get('/business/config').then(res => {
+                    if (res.code === 1 && res.data) {
+                        this.businessForm.open = res.data.open
+                        this.businessForm.startTime = res.data.startTime || '07:00'
+                        this.businessForm.endTime = res.data.endTime || '21:00'
+                        this.businessForm.restDayList = res.data.restDays ? res.data.restDays.split(',').filter(s => s) : []
+                    }
+                })
+            },
+            toggleBusiness(val) {
+                $axios.put('/business/toggle', { open: val }).then(res => {
+                    if (res.code === 1) {
+                        this.$message.success(val === 1 ? '门店已设为营业中' : '门店已打烊')
+                    }
+                })
+            },
+            saveBusiness() {
+                this.businessSaving = true
+                const form = {
+                    open: this.businessForm.open,
+                    startTime: this.businessForm.startTime,
+                    endTime: this.businessForm.endTime,
+                    restDays: this.businessForm.restDayList.join(',')
+                }
+                $axios.put('/business/config', form).then(res => {
+                    if (res.code === 1) {
+                        this.$message.success('营业设置已保存')
+                        this.businessDialogVisible = false
+                    } else {
+                        this.$message.error(res.msg || '保存失败')
+                    }
+                }).catch(() => {
+                    this.$message.error('网络异常')
+                }).finally(() => {
+                    this.businessSaving = false
+                })
+            },
         },
         watch: {
             configDialogVisible(val) {

@@ -1,6 +1,11 @@
-# 配置服务器端口
+# 配置服务器端口与编码
 server:
   port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
 spring:
   application:

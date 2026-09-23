@@ -72,3 +72,19 @@ function setMealDishDetailsApi(id) {
         'method': 'get',
     })
 }
+
+//获取生效公告（C端首页公告滚条）
+function announcementActiveApi() {
+    return $axios({
+        'url': '/announcement/active',
+        'method': 'get',
+    })
+}
+
+//查询门店营业状态
+function businessStatusApi() {
+    return $axios({
+        'url': '/business/status',
+        'method': 'get',
+    })
+}

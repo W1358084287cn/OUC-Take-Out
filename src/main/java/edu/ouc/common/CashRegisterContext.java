@@ -51,7 +51,7 @@ public class CashRegisterContext {
     /**
      * 累加收入（订单完成时调用）
      */
-    public void addIncome(BigDecimal amount) {
+    public synchronized void addIncome(BigDecimal amount) {
         checkAndRefresh();
         currentRecord.setTotalAmount(currentRecord.getTotalAmount().add(amount));
         currentRecord.setNetAmount(currentRecord.getTotalAmount().subtract(currentRecord.getRefundAmount()));
@@ -61,7 +61,7 @@ public class CashRegisterContext {
     /**
      * 累加退款（退款完成时调用）
      */
-    public void addRefund(BigDecimal amount) {
+    public synchronized void addRefund(BigDecimal amount) {
         checkAndRefresh();
         currentRecord.setRefundAmount(currentRecord.getRefundAmount().add(amount));
         currentRecord.setNetAmount(currentRecord.getTotalAmount().subtract(currentRecord.getRefundAmount()));

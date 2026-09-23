@@ -30,6 +30,17 @@
   transform: translate(0, -50%);
 }
 
+#order .divHead .divTitle .btnManage {
+  position: absolute;
+  right: 16rem;
+  top: 50%;
+  transform: translate(0, -50%);
+  font-size: 14rem;
+  font-weight: 400;
+  color: #ffc200;
+  cursor: pointer;
+}
+
 #order .divBody {
   margin: 10rem 12rem 10rem 12rem;
   background: #ffffff;
@@ -38,6 +49,48 @@
   padding-right: 10rem;
   height: calc(100% - 108rem);
   overflow-y: auto;
+}
+
+#order .divBody .manageBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 6rem;
+}
+
+#order .divBody .manageBar .btnDeleteSelected {
+  width: 100rem;
+  height: 32rem;
+  line-height: 32rem;
+  text-align: center;
+  background: #ff6b6b;
+  color: #fff;
+  border-radius: 16rem;
+  font-size: 13rem;
+  cursor: pointer;
+}
+
+#order .divBody .manageBar .btnDeleteSelected.disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+#order .divBody .orderContent {
+  display: flex;
+  align-items: flex-start;
+}
+
+#order .divBody .orderContent .orderCheckbox {
+  margin-top: 14rem;
+  margin-right: 10rem;
+  flex-shrink: 0;
+}
+
+#order .divBody .orderContent .orderMain {
+  flex: 1;
+  min-width: 0;
 }
 
 #order .divBody .van-list .van-cell::after {

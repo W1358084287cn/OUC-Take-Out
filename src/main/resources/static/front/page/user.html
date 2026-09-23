@@ -165,7 +165,8 @@
             },
             getStatus(status) {
                 let str = ''
-                switch (status) {
+                let code = Number(status)
+                switch (code) {
                     case 1:
                         str = '待付款'
                         break;
@@ -180,6 +181,18 @@
                         break;
                     case 5:
                         str = '已取消'
+                        break;
+                    case 6:
+                        str = '已退款'
+                        break;
+                    case 7:
+                        str = '退款申请中'
+                        break;
+                    case 8:
+                        str = '部分退款'
+                        break;
+                    default:
+                        str = code ? '状态(' + code + ')' : '未知状态'
                         break;
 
                 }

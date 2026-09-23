@@ -97,6 +97,7 @@
                        icon="el-icon-delete">批量删除
             </el-button>
             <el-button type="warning" @click="openCleanDialog" icon="el-icon-delete-solid">清理历史订单</el-button>
+            <el-button type="danger" @click="deleteAllHandle" icon="el-icon-delete">删除全部订单</el-button>
             <el-button type="primary" @click="openRefundReview" icon="el-icon-s-check">
                 退款审核
                 <el-badge :value="refundRequestCount" class="refund-badge" v-if="refundRequestCount > 0" />
@@ -122,29 +123,28 @@
                     <span>￥{{ row.amount }}</span>
                 </template>
             </el-table-column>
-            <el-table-column prop="btn" label="操作" min-width="140">
+            <el-table-column prop="btn" label="操作" min-width="180">
                 <template slot-scope="{ row }">
-                    <el-button type="text" @click="goDetail(row)" class="blueBug">
-                        查看
-                    </el-button>
-                    <el-divider v-if="row.status === 2" direction="vertical"></el-divider>
-                    <el-button v-if="row.status === 2" type="text" @click="completeOrder(3, row.id)"
-                               class="blueBug">
-                        完成
-                    </el-button>
-                    <el-divider v-if="row.status === 2" direction="vertical"></el-divider>
-                    <el-button v-if="row.status === 2" type="text" @click="refundHandle(row)"
-                               class="delBut">
-                        退款
-                    </el-button>
+                    <el-button type="text" @click="goDetail(row)" class="blueBug">查看</el-button>
+                    <!-- 等待商家接单：接单 + 退款 -->
+                    <template v-if="row.status === 2">
+                        <el-divider direction="vertical"></el-divider>
+                        <el-button type="text" @click="acceptOrder(row.id)" class="blueBug">接单</el-button>
+                        <el-divider direction="vertical"></el-divider>
+                        <el-button type="text" @click="refundHandle(row)" class="delBut">退款</el-button>
+                    </template>
+                    <!-- 制作中：完成 + 退款 -->
+                    <template v-if="row.status === 3">
+                        <el-divider direction="vertical"></el-divider>
+                        <el-button type="text" @click="completeOrder(4, row.id)" class="blueBug">完成</el-button>
+                        <el-divider direction="vertical"></el-divider>
+                        <el-button type="text" @click="refundHandle(row)" class="delBut">退款</el-button>
+                    </template>
+                    <!-- 退款申请中：处理退款 -->
                     <el-button v-if="row.status === 7" type="text" @click="handleRefundBtn(row)"
-                               style="color:#e6a23c;">
-                        处理退款
-                    </el-button>
+                               style="color:#e6a23c;">处理退款</el-button>
                     <el-divider direction="vertical"></el-divider>
-                    <el-button type="text" @click="deleteHandle(row)" class="delBut">
-                        删除
-                    </el-button>
+                    <el-button type="text" @click="deleteHandle(row)" class="delBut">删除</el-button>
                 </template>
             </el-table-column>
         </el-table>
@@ -350,9 +350,14 @@
             this.unreadTimer = setInterval(() => {
                 this.checkRefundUnread()
             }, 5000)
+            // 订单列表每5秒自动刷新，确保状态实时更新
+            this.orderRefreshTimer = setInterval(() => {
+                this.refreshOrderList()
+            }, 5000)
         },
         beforeDestroy() {
             if (this.unreadTimer) clearInterval(this.unreadTimer)
+            if (this.orderRefreshTimer) clearInterval(this.orderRefreshTimer)
         },
         methods: {
             async init() {
@@ -371,6 +376,23 @@
                     this.$message.error('请求出错了：' + err)
                 })
             },
+            // 静默刷新订单列表（轮询用，不显示loading，不改变页码）
+            refreshOrderList() {
+                getOrderDetailPage({
+                    page: this.page,
+                    pageSize: this.pageSize,
+                    number: this.input || undefined,
+                    beginTime: this.beginTime || undefined,
+                    endTime: this.endTime || undefined
+                }).then(res => {
+                    if (String(res.code) === '1') {
+                        this.tableData = res.data.records || []
+                        this.counts = res.data.total
+                    }
+                }).catch(() => {
+                    // 轮询失败静默处理，不打断用户操作
+                })
+            },
             // 加载保留天数配置
             loadRetentionDays() {
                 getOrderRetentionDays().then(res => {
@@ -385,15 +407,16 @@
             },
             getOrderType(row) {
                 let str = ''
-                switch (row.status) {
+                let code = Number(row.status)
+                switch (code) {
                     case 1:
                         str = '待付款'
                         break;
                     case 2:
-                        str = '制作中'
+                        str = '等待商家接单'
                         break;
                     case 3:
-                        str = '已完成'
+                        str = '制作中'
                         break;
                     case 4:
                         str = '已完成'
@@ -410,7 +433,9 @@
                     case 8:
                         str = '部分退款'
                         break;
-
+                    default:
+                        str = code ? '状态(' + code + ')' : '未知状态'
+                        break;
                 }
                 return str
             },
@@ -483,6 +508,26 @@
                             this.init()
                         } else {
                             this.$message.error(res.msg || '清理失败')
+                        }
+                    }).catch(err => {
+                        this.$message.error('请求出错了：' + err)
+                    })
+                }).catch(() => {})
+            },
+            // 删除全部订单
+            deleteAllHandle() {
+                this.$confirm('确认删除全部订单吗？此操作将清空所有订单及明细数据，不可恢复！', '删除全部订单', {
+                    confirmButtonText: '确定删除全部',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    deleteAllOrdersApi().then(res => {
+                        if (res.code === 1) {
+                            this.$message.success(res.msg || '删除全部订单成功')
+                            this.multipleSelection = []
+                            this.init()
+                        } else {
+                            this.$message.error(res.msg || '删除失败')
                         }
                     }).catch(err => {
                         this.$message.error('请求出错了：' + err)
@@ -596,7 +641,7 @@
                 }).then(() => {
                     editOrderDetail(params).then(res => {
                         if (res.code === 1) {
-                            this.$message.success('订单制作完成')
+                            this.$message.success('订单已完成')
                             this.init()
                         } else {
                             this.$message.error(res.msg || '操作失败')
@@ -604,9 +649,26 @@
                     }).catch(err => {
                         this.$message.error('请求出错了：' + err)
                     })
-                }).catch(() => {
-                    // 用户点击取消，不执行任何操作
-                })
+                }).catch(() => {})
+            },
+            // 商家接单：状态 2→3 制作中
+            acceptOrder(orderId) {
+                this.$confirm('确认接单吗？接单后该订单进入制作中状态', '接单确认', {
+                    'confirmButtonText': '确定接单',
+                    'cancelButtonText': '取消',
+                    'type': 'warning'
+                }).then(() => {
+                    acceptOrderApi(orderId).then(res => {
+                        if (res.code === 1) {
+                            this.$message.success('接单成功，订单进入制作中')
+                            this.init()
+                        } else {
+                            this.$message.error(res.msg || '接单失败')
+                        }
+                    }).catch(err => {
+                        this.$message.error('请求出错了：' + err)
+                    })
+                }).catch(() => {})
             },
             refundHandle(row) {
                 this.$confirm('确认退款该订单吗？退款后不可恢复', '确定退款', {

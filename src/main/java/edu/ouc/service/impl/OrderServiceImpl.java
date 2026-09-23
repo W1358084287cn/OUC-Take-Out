@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import edu.ouc.common.BaseContext;
+import edu.ouc.common.BusinessHoursContext;
 import edu.ouc.common.CashRegisterContext;
 import edu.ouc.common.CustomException;
 import edu.ouc.common.RefundContext;
@@ -44,13 +45,15 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
     private final IDishService dishService;
     private final RefundContext refundContext;
     private final CashRegisterContext cashRegisterContext;
+    private final BusinessHoursContext businessHoursContext;
 
     public OrderServiceImpl(OrderDetailServiceImpl orderDetailService, ShoppingCartServiceImpl shoppingCartService,
                             UserServiceImpl userService,
                             @org.springframework.context.annotation.Lazy IKitchenOrderService kitchenOrderService,
                             @org.springframework.context.annotation.Lazy IDishService dishService,
                             RefundContext refundContext,
-                            CashRegisterContext cashRegisterContext) {
+                            CashRegisterContext cashRegisterContext,
+                            BusinessHoursContext businessHoursContext) {
         this.orderDetailService = orderDetailService;
         this.shoppingCartService = shoppingCartService;
         this.userService = userService;
@@ -58,6 +61,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         this.dishService = dishService;
         this.refundContext = refundContext;
         this.cashRegisterContext = cashRegisterContext;
+        this.businessHoursContext = businessHoursContext;
     }
 
     // 提交(添加)订单，返回订单对象(含订单号)
@@ -67,6 +71,11 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
 
         // 1.获取当前登录用户ID
         Long userId = BaseContext.getCurrentUserId();
+
+        // 1.1 校验门店营业状态（不校验 tableNo，获取到购物车为空时不拦截）
+        if (!businessHoursContext.isOpenNow()) {
+            throw new CustomException("门店已打烊，暂无法下单");
+        }
 
 
         // 2.调用购物车ShoppingCart业务层的获取购物车信息
@@ -117,8 +126,9 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         orders.setNumber(String.valueOf(orderId));
         // 设置下单用户ID
         orders.setUserId(userId);
-        // 设置订单状态为待付款(支付完成后再改为制作中)
+        // 设置订单状态为待付款(支付完成后→等待商家接单→商家接单→制作中→完成)
         orders.setStatus(1);
+        log.info("订单状态已设为待付款: orderId={}, status=1, userId={}", orderId, userId);
         // 设置商品总金额
         orders.setAmount(amount.get());
         // 设置订单客户联系方式（堂食用桌号，带走用用户邮箱，截断防超长）
@@ -133,6 +143,10 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
 
         // 7.调用订单数据层新增订单
         this.save(orders);
+        // 7.1 验证持久化后的状态：重新查库对比，排查数据库默认值/触发器问题
+        Orders recheck = this.getById(orderId);
+        log.warn("订单持久化验证: orderId={}, 内存status={}, 数据库status={}",
+                orderId, orders.getStatus(), recheck != null ? recheck.getStatus() : "查无此订单");
 
 
         // 8.批量新增订单明细
@@ -151,12 +165,13 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         return this.getById(id);
     }
 
-    // 用户支付，更新订单状态为制作中
+    // 用户支付，更新订单状态为等待商家接单
     @Override
     @Transactional
     public Boolean pay(Long orderId, Integer payMethod) {
         // 1.根据订单ID查询订单
         Orders order = this.getById(orderId);
+        log.info("支付前查库: orderId={}, DB中status={}", orderId, order != null ? order.getStatus() : "订单不存在");
         if (order == null) {
             throw new CustomException("订单不存在");
         }
@@ -164,18 +179,44 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         if (order.getStatus() != 1) {
             throw new CustomException("订单状态异常，无法支付");
         }
-        // 3.更新订单状态为制作中、支付方式、支付时间
+        // 3.更新订单状态为等待商家接单、支付方式、支付时间
+        Integer oldStatus = order.getStatus();
         order.setStatus(2);
         order.setPayMethod(payMethod);
         order.setCheckoutTime(LocalDateTime.now());
         // 4.执行更新
         boolean result = this.updateById(order);
+        // 4.1 验证更新后的状态
+        Orders recheckPay = this.getById(orderId);
+        log.warn("订单支付验证: orderId={}, 支付前status={}, 内存status={}, 数据库status={}, payMethod={}",
+                orderId, oldStatus, order.getStatus(), recheckPay != null ? recheckPay.getStatus() : "查无此订单", payMethod);
 
         // 联动收银台：支付成功即记收入
         if (result && order.getAmount() != null) {
             cashRegisterContext.addIncome(order.getAmount());
             log.info("收银台联动：支付成功记收入, orderId={}, amount={}", orderId, order.getAmount());
         }
+        return result;
+    }
+
+    // 商家接单，状态 2→3 制作中
+    @Override
+    @Transactional
+    public Boolean acceptOrder(Long orderId) {
+        if (orderId == null) {
+            throw new CustomException("订单ID不能为空");
+        }
+        Orders order = this.getById(orderId);
+        log.info("接单前查库: orderId={}, DB中status={}", orderId, order != null ? order.getStatus() : "订单不存在");
+        if (order == null) {
+            throw new CustomException("订单不存在");
+        }
+        if (order.getStatus() != 2) {
+            throw new CustomException("仅等待商家接单的订单可接单");
+        }
+        order.setStatus(3);
+        boolean result = this.updateById(order);
+        log.info("商家接单: orderId={}, status: 2→3, waiterId={}", orderId, BaseContext.getCurrentUserId());
         return result;
     }
 
@@ -277,11 +318,11 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         return result;
     }
 
-    // 获取待处理订单数量（status=2制作中）
+    // 获取待处理订单数量（status=2等待商家接单 + status=3制作中）
     @Override
     public Integer getNewOrderCount() {
         LambdaQueryWrapper<Orders> lqw = new LambdaQueryWrapper<>();
-        lqw.in(Orders::getStatus, 2);
+        lqw.in(Orders::getStatus, 2, 3);
         return Math.toIntExact(this.count(lqw));
     }
 
@@ -297,15 +338,15 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
             throw new CustomException("订单不存在");
         }
         Integer status = order.getStatus();
-        if (status != 1 && status != 2) {
-            throw new CustomException("仅待付款或制作中的订单可退款");
+        if (status != 1 && status != 2 && status != 3) {
+            throw new CustomException("仅待付款、等待接单或制作中的订单可退款");
         }
         // 更新订单状态为已退款
         order.setStatus(6);
         boolean updated = this.updateById(order);
 
-        // 退款联动0：收银台记录退款金额（仅制作中的订单已记收入，需扣减）
-        if (status == 2 && order.getAmount() != null) {
+        // 退款联动0：收银台记录退款金额（已支付订单需扣减收入）
+        if ((status == 2 || status == 3) && order.getAmount() != null) {
             cashRegisterContext.addRefund(order.getAmount());
             log.info("收银台联动：退款扣减收入, orderId={}, amount={}", orderId, order.getAmount());
         }
@@ -354,10 +395,14 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         if (order == null) {
             throw new CustomException("订单不存在");
         }
-        if (order.getStatus() != 2) {
+        // 校验订单归属当前用户
+        Long userId = BaseContext.getCurrentUserId();
+        if (!userId.equals(order.getUserId())) {
+            throw new CustomException("只能给自己的订单加餐");
+        }
+        if (order.getStatus() != 3) {
             throw new CustomException("仅制作中的订单可加餐");
         }
-        Long userId = BaseContext.getCurrentUserId();
         // 查询当前用户购物车
         LambdaQueryWrapper<ShoppingCart> cartLqw = new LambdaQueryWrapper<>();
         cartLqw.eq(ShoppingCart::getUserId, userId);
@@ -477,6 +522,20 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         return orderDeleted;
     }
 
+    // 删除全部订单及关联明细
+    @Override
+    @Transactional
+    public int deleteAll() {
+        // 1.先查全部订单明细数量
+        long detailCount = orderDetailService.count();
+        // 2.删除全部订单明细（子表）
+        orderDetailService.remove(new LambdaQueryWrapper<>());
+        // 3.删除全部订单（主表）
+        int orderDeleted = this.getBaseMapper().delete(new LambdaQueryWrapper<>());
+        log.info("删除全部订单完成: 订单{}笔, 明细{}条", orderDeleted, detailCount);
+        return orderDeleted;
+    }
+
     // 客户发起退款申请
     @Override
     @Transactional
@@ -497,8 +556,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         if (!order.getUserId().equals(userId)) {
             throw new CustomException("只能对自己的订单发起退款");
         }
-        // 只有制作中(2)或已完成(3)的订单可退款
-        if (order.getStatus() != 2 && order.getStatus() != 3) {
+        // 只有等待接单(2)、制作中(3)或已完成(4)的订单可退款
+        if (order.getStatus() != 2 && order.getStatus() != 3 && order.getStatus() != 4) {
             throw new CustomException("当前订单状态不可退款");
         }
         // 退款金额不能超过订单金额
@@ -648,5 +707,69 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         } catch (Exception e) {
             log.warn("退款恢复估清菜品失败: orderId={}, error={}", orderId, e.getMessage());
         }
+    }
+
+    // 再来一单：将历史订单菜品重新加入购物车
+    @Override
+    public void again(Long orderId) {
+        Long userId = BaseContext.getCurrentUserId();
+        Orders order = this.getById(orderId);
+        if (order == null) {
+            throw new CustomException("订单不存在");
+        }
+        // 校验订单归属当前用户（防止查看他人订单详情）
+        if (!userId.equals(order.getUserId())) {
+            throw new CustomException("只能再来一单自己的订单");
+        }
+
+        LambdaQueryWrapper<OrderDetail> detailLqw = new LambdaQueryWrapper<>();
+        detailLqw.eq(OrderDetail::getOrderId, orderId);
+        List<OrderDetail> details = orderDetailService.list(detailLqw);
+
+        if (details == null || details.isEmpty()) {
+            throw new CustomException("订单无菜品明细");
+        }
+
+        for (OrderDetail detail : details) {
+            // 先查购物车是否已有相同商品
+            LambdaQueryWrapper<ShoppingCart> cartLqw = new LambdaQueryWrapper<>();
+            cartLqw.eq(ShoppingCart::getUserId, userId);
+            if (detail.getDishId() != null) {
+                cartLqw.eq(ShoppingCart::getDishId, detail.getDishId());
+            } else if (detail.getSetmealId() != null) {
+                cartLqw.eq(ShoppingCart::getSetmealId, detail.getSetmealId());
+            } else {
+                continue;
+            }
+            // 菜品有口味时也要匹配口味
+            if (detail.getDishFlavor() != null && !detail.getDishFlavor().isEmpty()) {
+                cartLqw.eq(ShoppingCart::getDishFlavor, detail.getDishFlavor());
+            }
+
+            ShoppingCart existing = shoppingCartService.getOne(cartLqw);
+            if (existing != null) {
+                // 已有则累加数量（用原订单数量，保留已有数量防止多次再来一单叠加过多）
+                existing.setNumber(existing.getNumber() + (detail.getNumber() != null ? detail.getNumber() : 1));
+                shoppingCartService.updateById(existing);
+            } else {
+                // 没有则新增
+                ShoppingCart cart = new ShoppingCart();
+                cart.setUserId(userId);
+                cart.setName(detail.getName());
+                cart.setImage(detail.getImage());
+                cart.setAmount(detail.getAmount());
+                if (detail.getDishId() != null) {
+                    cart.setDishId(detail.getDishId());
+                }
+                if (detail.getSetmealId() != null) {
+                    cart.setSetmealId(detail.getSetmealId());
+                }
+                cart.setDishFlavor(detail.getDishFlavor());
+                cart.setNumber(detail.getNumber() != null ? detail.getNumber() : 1);
+                cart.setCreateTime(LocalDateTime.now());
+                shoppingCartService.save(cart);
+            }
+        }
+        log.info("再来一单: orderId={}, userId={}, 菜品数={}", orderId, userId, details.size());
     }
 }
