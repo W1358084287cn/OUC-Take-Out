@@ -116,3 +116,20 @@ const markRefundViewedApi = () => {
     method: 'post'
   })
 }
+
+// 标记订单为已查看（红点提醒用）
+const markOrderViewedApi = (orderId) => {
+  return $axios({
+    url: '/order/markViewed',
+    method: 'post',
+    data: { orderId }
+  })
+}
+
+// 获取未查看的新订单数量（红点提醒用）
+const getUnviewedOrderCountApi = () => {
+  return $axios({
+    url: '/order/unviewedOrderCount',
+    method: 'get'
+  })
+}

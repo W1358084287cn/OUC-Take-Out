@@ -68,6 +68,24 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.3); }
         }
+
+        /* 订单状态标签颜色 */
+        .status-tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 20px;
+        }
+        .status-1 { color: #909399; background: #f4f4f5; }  /* 待付款 - 灰 */
+        .status-2 { color: #e6a23c; background: #fdf6ec; }  /* 等待商家接单 - 橙 */
+        .status-3 { color: #409eff; background: #ecf5ff; }  /* 制作中 - 蓝 */
+        .status-4 { color: #67c23a; background: #f0f9eb; }  /* 已完成 - 绿 */
+        .status-5 { color: #b0b3bb; background: #ededed; }  /* 已取消 - 浅灰 */
+        .status-6 { color: #f56c6c; background: #fef0f0; }  /* 已退款 - 红 */
+        .status-7 { color: #e6742e; background: #fef5e7; }  /* 退款申请中 - 深橙 */
+        .status-8 { color: #b37feb; background: #f5f0ff; }  /* 部分退款 - 紫 */
     </style>
 </head>
 <body>
@@ -102,6 +120,11 @@
                 退款审核
                 <el-badge :value="refundRequestCount" class="refund-badge" v-if="refundRequestCount > 0" />
             </el-button>
+            <span v-if="newOrderCount > 0" style="color:#e6a23c;font-weight:bold;margin-left:15px;">
+                <el-badge :value="newOrderCount" class="refund-badge">
+                    📋 新订单待处理
+                </el-badge>
+            </span>
             <span v-if="multipleSelection.length" style="margin-left: 10px;color: #606266;">
                 已选 {{ multipleSelection.length }} 笔订单
             </span>
@@ -109,9 +132,9 @@
         <el-table :data="tableData" stripe class="tableBox" @selection-change="handleSelectionChange">
             <el-table-column type="selection" width="45"></el-table-column>
             <el-table-column prop="number" label="订单号" min-width="110"></el-table-column>
-            <el-table-column prop="订单状态" label="订单状态">
+            <el-table-column prop="订单状态" label="订单状态" width="120">
                 <template slot-scope="{ row }">
-                    <span>{{ getOrderType(row) }}</span>
+                    <span :class="'status-tag status-' + row.status">{{ row.statusText }}</span>
                 </template>
             </el-table-column>
             <el-table-column prop="userName" label="用户"></el-table-column>
@@ -319,6 +342,8 @@
                 refundReviewVisible: false,
                 refundRequestList: [],
                 refundRequestCount: 0,
+                // 新订单提醒
+                newOrderCount: 0,
                 refundHandleVisible: false,
                 currentRefund: {},
                 refundHandleForm: {
@@ -369,11 +394,37 @@
                     endTime: this.endTime || undefined
                 }).then(res => {
                     if (String(res.code) === '1') {
-                        this.tableData = res.data.records || []
+                        // 注入 statusText 属性，避免 el-table 缓存导致文字不刷新
+                        const statusMap = { 1:'待付款', 2:'等待商家接单', 3:'制作中', 4:'已完成', 5:'已取消', 6:'已退款', 7:'退款申请中', 8:'部分退款' }
+                        const records = res.data.records || []
+                        records.forEach(r => { r.statusText = statusMap[r.status] || '未知' })
+                        this.tableData = records
                         this.counts = res.data.total
                     }
                 }).catch(err => {
                     this.$message.error('请求出错了：' + err)
+                })
+            },
+            // 核弹级刷新：先清空再赋值，强制 el-table 完全重建行，解决缓存导致文字不刷新的 BUG
+            doRefreshList() {
+                this.loading = false
+                this.tableData = []
+                this.$nextTick(() => {
+                    getOrderDetailPage({
+                        page: this.page,
+                        pageSize: this.pageSize,
+                        number: this.input || undefined,
+                        beginTime: this.beginTime || undefined,
+                        endTime: this.endTime || undefined
+                    }).then(res => {
+                        if (String(res.code) === '1') {
+                            const statusMap = { 1:'待付款', 2:'等待商家接单', 3:'制作中', 4:'已完成', 5:'已取消', 6:'已退款', 7:'退款申请中', 8:'部分退款' }
+                            const records = res.data.records || []
+                            records.forEach(r => { r.statusText = statusMap[r.status] || '未知' })
+                            this.tableData = records
+                            this.counts = res.data.total
+                        }
+                    }).catch(() => {})
                 })
             },
             // 静默刷新订单列表（轮询用，不显示loading，不改变页码）
@@ -386,7 +437,11 @@
                     endTime: this.endTime || undefined
                 }).then(res => {
                     if (String(res.code) === '1') {
-                        this.tableData = res.data.records || []
+                        // 注入 statusText 属性，避免 el-table 缓存导致文字不刷新
+                        const statusMap = { 1:'待付款', 2:'等待商家接单', 3:'制作中', 4:'已完成', 5:'已取消', 6:'已退款', 7:'退款申请中', 8:'部分退款' }
+                        const records = res.data.records || []
+                        records.forEach(r => { r.statusText = statusMap[r.status] || '未知' })
+                        this.tableData = records
                         this.counts = res.data.total
                     }
                 }).catch(() => {
@@ -459,7 +514,7 @@
                         if (res.code === 1) {
                             this.$message.success(res.msg || '批量删除成功')
                             this.multipleSelection = []
-                            this.init()
+                            this.doRefreshList()
                         } else {
                             this.$message.error(res.msg || '批量删除失败')
                         }
@@ -478,7 +533,7 @@
                     deleteOrderById(row.id).then(res => {
                         if (res.code === 1) {
                             this.$message.success('删除成功')
-                            this.init()
+                            this.doRefreshList()
                         } else {
                             this.$message.error(res.msg || '删除失败')
                         }
@@ -505,7 +560,7 @@
                         if (res.code === 1) {
                             this.$message.success(res.msg || '清理完成')
                             this.cleanDialogVisible = false
-                            this.init()
+                            this.doRefreshList()
                         } else {
                             this.$message.error(res.msg || '清理失败')
                         }
@@ -525,7 +580,7 @@
                         if (res.code === 1) {
                             this.$message.success(res.msg || '删除全部订单成功')
                             this.multipleSelection = []
-                            this.init()
+                            this.doRefreshList()
                         } else {
                             this.$message.error(res.msg || '删除失败')
                         }
@@ -568,6 +623,12 @@
                         const refund = refundList.find(r => String(r.orderId) === String(row.id))
                         if (refund) {
                             this.openRefundHandleDialog(refund)
+                            // 从订单行进入退款 → 标记退款为已读，消除红点
+                            markRefundViewedApi().then(() => {
+                                if (!this.refundReviewVisible) {
+                                    this.refundRequestCount = 0
+                                }
+                            }).catch(() => {})
                         } else {
                             this.$message.warning('未找到该订单的退款申请')
                         }
@@ -606,13 +667,14 @@
                     actualRefund: this.refundHandleForm.status === 3 ? this.refundHandleForm.actualRefund : this.currentRefund.refundAmount,
                     merchantReply: this.refundHandleForm.merchantReply
                 }
+
                 handleRefundApi(params).then(res => {
                     if (res.code === 1) {
                         const statusText = { 1: '已同意退款', 2: '已拒绝退款', 3: '已处理部分退款' }
                         this.$message.success(statusText[this.refundHandleForm.status] || '处理完成')
                         this.refundHandleVisible = false
                         this.refundReviewVisible = false
-                        this.init()
+                        this.doRefreshList()
                     } else {
                         this.$message.error(res.msg || '处理失败')
                     }
@@ -627,6 +689,10 @@
                 this.diaForm = {}
                 this.dialogVisible = true
                 this.diaForm = {...row}
+                // 标记订单为已查看，消除红点
+                markOrderViewedApi(row.id).then(() => {
+                    if (this.newOrderCount > 0) this.newOrderCount--
+                }).catch(() => {})
             },
             // 完成订单
             completeOrder(status, id) {
@@ -642,7 +708,7 @@
                     editOrderDetail(params).then(res => {
                         if (res.code === 1) {
                             this.$message.success('订单已完成')
-                            this.init()
+                            this.doRefreshList()
                         } else {
                             this.$message.error(res.msg || '操作失败')
                         }
@@ -661,7 +727,8 @@
                     acceptOrderApi(orderId).then(res => {
                         if (res.code === 1) {
                             this.$message.success('接单成功，订单进入制作中')
-                            this.init()
+                            if (this.newOrderCount > 0) this.newOrderCount--
+                            this.doRefreshList()
                         } else {
                             this.$message.error(res.msg || '接单失败')
                         }
@@ -679,7 +746,7 @@
                     refundOrder({id: row.id, remark: '后台退款'}).then(res => {
                         if (res.code === 1) {
                             this.$message.success('退款成功')
-                            this.init()
+                            this.doRefreshList()
                         } else {
                             this.$message.error(res.msg || '退款失败')
                         }
@@ -688,14 +755,21 @@
                     })
                 }).catch(() => {})
             },
-            // 轮询更新退款未读数（仅红点，语音/弹窗由父框架处理）
+            // 轮询更新未读数（退款 + 新订单），仅红点提醒
             checkRefundUnread() {
+                // 退款未读数
                 getRefundUnreadCountApi().then(res => {
                     if (res.code === 1) {
                         const count = res.data || 0
                         if (!this.refundReviewVisible) {
                             this.refundRequestCount = count
                         }
+                    }
+                }).catch(() => {})
+                // 新订单未查看数
+                getUnviewedOrderCountApi().then(res => {
+                    if (res.code === 1) {
+                        this.newOrderCount = res.data || 0
                     }
                 }).catch(() => {})
             },

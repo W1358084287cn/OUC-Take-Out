@@ -3,6 +3,7 @@ package edu.ouc.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import edu.ouc.common.R;
 import edu.ouc.common.RefundContext;
+import edu.ouc.common.ViewedContext;
 import edu.ouc.dto.OrderDto;
 import edu.ouc.entity.Orders;
 import edu.ouc.entity.RefundRequest;
@@ -29,6 +30,7 @@ import java.util.Map;
 public class OrderController {
     private final OrderServiceImpl orderService;
     private final RefundContext refundContext;
+    private final ViewedContext viewedContext;
 
     @Value("${reggie.order-retention-days:90}")
     private int retentionDays;
@@ -225,5 +227,33 @@ public class OrderController {
         refundContext.markAllViewed();
         log.info("退款已标记为已读");
         return R.success("已标记");
+    }
+
+    // --------------------------------------------------
+    // 以下为红点提醒相关接口
+    // --------------------------------------------------
+
+    // 标记单个订单为已查看（点击"查看"时调用）
+    @PostMapping("/markViewed")
+    public R<String> markOrderViewed(@RequestBody Map<String, Long> params) {
+        Long orderId = params.get("orderId");
+        if (orderId != null) {
+            viewedContext.markOrderViewed(orderId);
+            log.info("标记订单已查看: orderId={}", orderId);
+        }
+        return R.success("已标记");
+    }
+
+    // 获取未查看的新订单数量（status=2 且未查看）
+    @GetMapping("/unviewedOrderCount")
+    public R<Integer> getUnviewedOrderCount() {
+        java.util.List<Orders> status2Orders = orderService.list(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Orders>()
+                        .eq(Orders::getStatus, 2)
+        );
+        int count = (int) status2Orders.stream()
+                .filter(o -> !viewedContext.isOrderViewed(o.getId()))
+                .count();
+        return R.success(count);
     }
 }
